@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAI } from '../contexts/AIContext';
-import { FaPaperPlane, FaRobot, FaTimes, FaEdit, FaPlus, FaHistory, FaTrash, FaFile, FaCheck } from 'react-icons/fa';
+import { FaPaperPlane, FaTimes, FaEdit, FaPlus, FaHistory, FaTrash, FaFile, FaCheck, FaArrowLeft } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -101,28 +101,41 @@ const AISidebar: React.FC<AISidebarProps> = ({ currentFile, onFileUpdate }) => {
         <div className="ai-sidebar-container">
             <div className="ai-header">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <FaRobot />
-                    <span style={{ fontWeight: 'bold' }}>AI 助手</span>
+                    <span style={{ fontWeight: 'bold' }}>Copilot</span>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                    <button 
-                        onClick={() => setShowHistory(!showHistory)} 
-                        className={`glass-button ${showHistory ? 'active' : ''}`}
-                        title="历史记录"
-                    >
-                        <FaHistory />
-                    </button>
-                    <button onClick={handleNewChat} className="glass-button" title="新对话">
-                        <FaPlus />
-                    </button>
-                    <button 
-                        onClick={toggleEditMode} 
-                        className={`glass-button ${isEditMode ? 'active' : ''}`}
-                        title={isEditMode ? "退出编辑模式" : "进入编辑模式"}
-                        style={{ color: isEditMode ? '#4caf50' : 'inherit', borderColor: isEditMode ? '#4caf50' : 'transparent' }}
-                    >
-                        <FaEdit />
-                    </button>
+                    {showHistory ? (
+                        <button 
+                            onClick={() => setShowHistory(false)} 
+                            className="glass-button"
+                            title="返回"
+                        >
+                            <FaArrowLeft />
+                        </button>
+                    ) : (
+                        <>
+                            <button 
+                                onClick={() => setShowHistory(true)} 
+                                className="glass-button"
+                                title="历史记录"
+                            >
+                                <FaHistory />
+                            </button>
+                            {messages.length > 0 && (
+                                <button onClick={handleNewChat} className="glass-button" title="新对话">
+                                    <FaPlus />
+                                </button>
+                            )}
+                            <button 
+                                onClick={toggleEditMode} 
+                                className={`glass-button ${isEditMode ? 'active' : ''}`}
+                                title={isEditMode ? "退出编辑模式" : "进入编辑模式"}
+                                style={{ color: isEditMode ? '#4caf50' : 'inherit', borderColor: isEditMode ? '#4caf50' : 'transparent' }}
+                            >
+                                <FaEdit />
+                            </button>
+                        </>
+                    )}
                     <button onClick={toggleSidebar} className="glass-button">
                         <FaTimes />
                     </button>

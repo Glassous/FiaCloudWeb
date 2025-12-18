@@ -3,7 +3,7 @@ import { ossRegions, getEndpoint } from '../utils/regions';
 import type { OSSConfigData, AIConfigData, R2ConfigData, StorageProvider } from '../types';
 import { encrypt, decrypt } from '../utils/crypto';
 import { useUI } from '../contexts/UIContext';
-import { FaServer, FaCloud, FaRobot, FaCheckCircle } from 'react-icons/fa';
+import { FaServer, FaCloud, FaMagic, FaCheckCircle } from 'react-icons/fa';
 
 interface OSSConfigProps {
   onConfigSaved: (provider: StorageProvider, config: OSSConfigData | R2ConfigData) => void;
@@ -235,7 +235,7 @@ const OSSConfig: React.FC<OSSConfigProps> = ({ onConfigSaved, onAIConfigSaved })
                     fontWeight: 500
                 }}
             >
-                <FaRobot /> AI Configuration
+                <FaMagic /> AI Configuration
             </div>
         </div>
 

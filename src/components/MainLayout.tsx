@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { FaSignOutAlt, FaCog, FaTimes, FaSun, FaMoon, FaAdjust, FaBars, FaDownload, FaSearchPlus, FaSearchMinus, FaEllipsisV, FaCode, FaEye, FaSave, FaRobot, FaCamera } from 'react-icons/fa';
+import { FaSignOutAlt, FaCog, FaTimes, FaSun, FaMoon, FaAdjust, FaBars, FaDownload, FaSearchPlus, FaSearchMinus, FaEllipsisV, FaCode, FaEye, FaSave, FaMagic, FaCamera } from 'react-icons/fa';
 import OSSConfig from './OSSConfig';
 import FileList from './FileList';
 import FilePreview from './FilePreview';
@@ -477,10 +477,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
             <button 
                 onClick={toggleAISidebar}
                 className="glass-button"
-                title="AI 助手"
+                title="Copilot"
                 style={{ marginLeft: '8px' }}
             >
-                <FaRobot />
+                <FaMagic />
             </button>
             
             {/* Mobile Menu Toggle */}
@@ -504,7 +504,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
             style={{ 
                 width: !isMobile && isSidebarOpen ? `${sidebarWidth}px` : undefined,
                 transition: isResizingLeft ? 'none' : undefined,
-                position: 'relative'
+                position: isMobile ? undefined : 'relative'
             }}
         >
             {!isMobile && (
