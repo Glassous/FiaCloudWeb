@@ -1,4 +1,6 @@
 import React from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import type { OSSFile } from '../types';
 
 interface FilePreviewProps {
@@ -6,9 +8,18 @@ interface FilePreviewProps {
   content: string;
   loading: boolean;
   fontSize?: number;
+  viewMode?: 'preview' | 'source';
+  onContentChange?: (content: string) => void;
 }
 
-const FilePreview: React.FC<FilePreviewProps> = ({ file, content, loading, fontSize = 14 }) => {
+const FilePreview: React.FC<FilePreviewProps> = ({ 
+  file, 
+  content, 
+  loading, 
+  fontSize = 14,
+  viewMode = 'preview',
+  onContentChange
+}) => {
   if (!file) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: 'var(--text-secondary)', flexDirection: 'column' }}>
@@ -19,6 +30,7 @@ const FilePreview: React.FC<FilePreviewProps> = ({ file, content, loading, fontS
   }
 
   const isTextFile = file.name.endsWith('.txt') || file.name.endsWith('.md') || file.name.endsWith('.json') || file.name.endsWith('.js') || file.name.endsWith('.ts');
+  const isMarkdown = file.name.endsWith('.md');
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -29,19 +41,52 @@ const FilePreview: React.FC<FilePreviewProps> = ({ file, content, loading, fontS
           </div>
         ) : (
           isTextFile ? (
-            <div style={{ 
-                padding: '24px', 
-                minHeight: '100%', 
-                fontSize: `${fontSize}px`,
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-all',
-                overflowWrap: 'break-word',
-                fontFamily: 'Consolas, Monaco, "Courier New", monospace',
-                lineHeight: 1.6,
-                color: 'var(--text-primary)'
-            }}>
-              {content || <span style={{ color: 'var(--text-placeholder)' }}>文件内容为空</span>}
-            </div>
+            viewMode === 'source' ? (
+                <textarea 
+                    value={content}
+                    onChange={(e) => onContentChange && onContentChange(e.target.value)}
+                    spellCheck={false}
+                    style={{
+                        width: '100%',
+                        height: '100%',
+                        padding: '24px',
+                        fontSize: `${fontSize}px`,
+                        fontFamily: 'Consolas, Monaco, "Courier New", monospace',
+                        border: 'none',
+                        resize: 'none',
+                        outline: 'none',
+                        backgroundColor: 'transparent',
+                        color: 'var(--text-primary)',
+                        lineHeight: 1.6,
+                        boxSizing: 'border-box'
+                    }}
+                 />
+            ) : isMarkdown ? (
+                <div className="markdown-preview" style={{ 
+                    padding: '24px', 
+                    fontSize: `${fontSize}px`,
+                    color: 'var(--text-primary)',
+                    lineHeight: 1.6
+                }}>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {content}
+                    </ReactMarkdown>
+                </div>
+            ) : (
+                <div style={{ 
+                    padding: '24px', 
+                    minHeight: '100%', 
+                    fontSize: `${fontSize}px`,
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-all',
+                    overflowWrap: 'break-word',
+                    fontFamily: 'Consolas, Monaco, "Courier New", monospace',
+                    lineHeight: 1.6,
+                    color: 'var(--text-primary)'
+                }}>
+                  {content || <span style={{ color: 'var(--text-placeholder)' }}>文件内容为空</span>}
+                </div>
+            )
           ) : (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', flexDirection: 'column', color: 'var(--text-secondary)' }}>
                <div style={{ fontSize: 40, marginBottom: 10 }}>📦</div>

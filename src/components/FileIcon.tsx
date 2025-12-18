@@ -38,7 +38,6 @@ import {
   FaFileAlt,
   FaFile,
   FaJava,
-  FaAndroid,
   FaApple,
   FaLinux,
   FaWindows
@@ -140,13 +139,13 @@ const FileIcon: React.FC<FileIconProps> = ({ fileName, size = 16, className, sty
     case 'sh':
     case 'bash':
     case 'zsh':
-      return <FaTerminal {...iconProps} color="#4EAA25" />;
+      return <FaFileCode {...iconProps} color="#4EAA25" />;
     case 'ps1':
     case 'psm1':
       return <FaWindows {...iconProps} color="#5391FE" />;
     case 'bat':
     case 'cmd':
-      return <FaTerminal {...iconProps} />;
+      return <FaFileCode {...iconProps} />;
 
     // Config/Data
     case 'yaml':

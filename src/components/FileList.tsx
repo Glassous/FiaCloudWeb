@@ -41,7 +41,7 @@ interface FileListProps {
 
 const FileList: React.FC<FileListProps> = ({ 
   files, 
-  selectedFile, 
+  selectedFile: _selectedFile, 
   onSelect, 
   onUpload, 
   onRefresh,
@@ -141,7 +141,7 @@ const FileList: React.FC<FileListProps> = ({
       });
   };
 
-  const handleNodeClick = (node: DataNode, e: React.MouseEvent) => {
+  const handleNodeClick = (node: DataNode, _e: React.MouseEvent) => {
       // e.stopPropagation(); // Removed to allow document click listener to close context menu
       setSelectedKey(node.key);
       

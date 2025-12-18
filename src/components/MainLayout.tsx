@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaSignOutAlt, FaCog, FaTimes, FaSun, FaMoon, FaAdjust, FaBars, FaDownload, FaSearchPlus, FaSearchMinus, FaEllipsisV } from 'react-icons/fa';
+import { FaSignOutAlt, FaCog, FaTimes, FaSun, FaMoon, FaAdjust, FaBars, FaDownload, FaSearchPlus, FaSearchMinus, FaEllipsisV, FaCode, FaEye, FaSave } from 'react-icons/fa';
 import OSSConfig from './OSSConfig';
 import FileList from './FileList';
 import FilePreview from './FilePreview';
@@ -17,6 +17,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
   const [isConfigured, setIsConfigured] = useState(false);
   const [selectedFile, setSelectedFile] = useState<OSSFile | null>(null);
   const [fileContent, setFileContent] = useState('');
+  const [editedContent, setEditedContent] = useState('');
+  const [viewMode, setViewMode] = useState<'preview' | 'source'>('preview');
   const [contentLoading, setContentLoading] = useState(false);
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 768);
@@ -50,6 +52,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
     uploadFile, 
     getFileUrl, 
     getFileContent,
+    saveFileContent,
     deleteFile,
     deleteFolder,
     renameFile,
@@ -90,7 +93,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
     }
   };
 
-  const handleFileSelect = async (file: OSSFile | null, folderPath?: string) => {
+  const handleFileSelect = async (file: OSSFile | null, _folderPath?: string) => {
     // Auto-close sidebar on mobile when file is selected
     if (file && window.innerWidth <= 768) {
         setIsSidebarOpen(false);
@@ -105,12 +108,24 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
         setContentLoading(true);
         const content = await getFileContent(file.name);
         setFileContent(content);
+        setEditedContent(content);
+        if (file.name.endsWith('.md')) {
+            setViewMode('preview');
+        } else {
+            setViewMode('source');
+        }
         setContentLoading(false);
       }
     } else {
         setSelectedFile(null);
         setFileContent('');
     }
+  };
+
+  const handleSave = async () => {
+    if (!selectedFile) return;
+    await saveFileContent(selectedFile.name, editedContent);
+    setFileContent(editedContent);
   };
 
   const handleDownload = () => {
@@ -216,6 +231,57 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
                     <div style={{ display: 'flex', gap: 8 }}>
                         {isTextFile && (
                             <>
+                                {selectedFile.name.endsWith('.md') && (
+                                    <div style={{ display: 'flex', backgroundColor: 'rgba(128,128,128,0.1)', borderRadius: '6px', padding: '2px', marginRight: '8px' }}>
+                                        <button
+                                            onClick={() => setViewMode('preview')}
+                                            className="glass-button"
+                                            style={{ 
+                                                padding: '6px 10px', 
+                                                borderRadius: '4px',
+                                                backgroundColor: viewMode === 'preview' ? 'var(--bg-primary)' : 'transparent',
+                                                boxShadow: viewMode === 'preview' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                                                border: 'none',
+                                                color: viewMode === 'preview' ? 'var(--text-primary)' : 'var(--text-secondary)'
+                                            }}
+                                            title="预览"
+                                        >
+                                            <FaEye />
+                                        </button>
+                                        <button
+                                            onClick={() => setViewMode('source')}
+                                            className="glass-button"
+                                            style={{ 
+                                                padding: '6px 10px', 
+                                                borderRadius: '4px',
+                                                backgroundColor: viewMode === 'source' ? 'var(--bg-primary)' : 'transparent',
+                                                boxShadow: viewMode === 'source' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                                                border: 'none',
+                                                color: viewMode === 'source' ? 'var(--text-primary)' : 'var(--text-secondary)'
+                                            }}
+                                            title="源码"
+                                        >
+                                            <FaCode />
+                                        </button>
+                                    </div>
+                                )}
+                                
+                                {viewMode === 'source' && (
+                                     <button 
+                                        onClick={handleSave} 
+                                        title={fileContent !== editedContent ? "保存 (未保存)" : "保存 (已保存)"}
+                                        className="glass-button"
+                                        style={{ 
+                                            padding: '6px 10px', 
+                                            marginRight: '8px', 
+                                            color: fileContent !== editedContent ? '#4caf50' : 'var(--text-secondary)',
+                                            borderColor: fileContent !== editedContent ? '#4caf50' : 'var(--border-subtle)'
+                                        }}
+                                    >
+                                        <FaSave />
+                                    </button>
+                                )}
+
                                 <button 
                                     onClick={() => setFontSize(s => Math.min(s + 2, 32))} 
                                     title="放大" 
@@ -322,9 +388,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
         <div className="glass-panel app-main">
           <FilePreview 
             file={selectedFile}
-            content={fileContent}
+            content={editedContent}
             loading={contentLoading}
             fontSize={fontSize}
+            viewMode={viewMode}
+            onContentChange={setEditedContent}
           />
         </div>
       </div>

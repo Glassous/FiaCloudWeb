@@ -111,6 +111,23 @@ export const useOSS = () => {
       }
   }, [client, showToast]);
 
+  const saveFileContent = useCallback(async (fileName: string, content: string) => {
+    if (!client) return;
+    setLoading(true);
+    try {
+      const blob = new Blob([content], { type: 'text/plain' });
+      await client.put(fileName, blob);
+      showToast('文件保存成功', 'success');
+      // Refresh list to update size/time if needed, though content is what matters
+      await listFiles(); 
+    } catch (error) {
+      console.error('Save file content error:', error);
+      showToast('文件保存失败', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [client, listFiles, showToast]);
+
   const deleteFile = useCallback(async (fileName: string) => {
     if (!client) return;
     setLoading(true);
@@ -295,6 +312,7 @@ export const useOSS = () => {
     uploadFile,
     getFileUrl,
     getFileContent,
+    saveFileContent,
     deleteFile,
     deleteFolder,
     renameFile,
