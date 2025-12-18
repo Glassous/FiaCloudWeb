@@ -10,6 +10,7 @@
 /* Light Mode Variables */
 :root.light {
   --bg-app: #f0f2f5; /* Clean light gray background */
+  --bg-panel: #ffffff;
   --bg-glass: rgba(255, 255, 255, 0.7);
   --bg-glass-hover: rgba(255, 255, 255, 0.85);
   --bg-glass-active: rgba(255, 255, 255, 0.95);
@@ -39,6 +40,7 @@
 /* Dark Mode Variables */
 :root.dark {
   --bg-app: #121212; /* Deep dark background */
+  --bg-panel: #1e1e1e;
   --bg-glass: rgba(30, 30, 30, 0.7);
   --bg-glass-hover: rgba(45, 45, 45, 0.8);
   --bg-glass-active: rgba(60, 60, 60, 0.9);

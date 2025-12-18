@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { FaSignOutAlt, FaCog, FaTimes, FaSun, FaMoon, FaAdjust, FaBars, FaDownload, FaSearchPlus, FaSearchMinus, FaEllipsisV, FaCode, FaEye, FaSave } from 'react-icons/fa';
+import { FaSignOutAlt, FaCog, FaTimes, FaSun, FaMoon, FaAdjust, FaBars, FaDownload, FaSearchPlus, FaSearchMinus, FaEllipsisV, FaCode, FaEye, FaSave, FaRobot } from 'react-icons/fa';
 import OSSConfig from './OSSConfig';
 import FileList from './FileList';
 import FilePreview from './FilePreview';
+import AISidebar from './AISidebar';
 import { useOSS } from '../hooks/useOSS';
 import { decrypt } from '../utils/crypto';
 import { useTheme } from '../contexts/ThemeContext';
 import { useUI } from '../contexts/UIContext';
+import { useAI } from '../contexts/AIContext';
 import type { OSSFile, OSSConfigData } from '../types';
 
 interface MainLayoutProps {
@@ -28,6 +30,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
   
   const { theme, cycleTheme } = useTheme();
   const { showConfirm, showToast } = useUI();
+  const { toggleSidebar: toggleAISidebar, isOpen: isAIOpen } = useAI();
 
   useEffect(() => {
     const handleResize = () => {
@@ -321,6 +324,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
                 >
                     {getThemeIcon()}
                 </button>
+
+                <button 
+                    onClick={toggleAISidebar}
+                    className="glass-button"
+                    title="AI 助手"
+                >
+                    <FaRobot />
+                </button>
             </div>
             
             {/* Mobile Menu Toggle */}
@@ -337,7 +348,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
       </div>
       
       {/* Content */}
-      <div className="app-content-wrapper" style={{ position: 'relative' }}>
+      <div className="app-content-wrapper" style={{ position: 'relative', display: 'flex', flex: 1, overflow: 'hidden' }}>
         {/* Sidebar */}
         <div className={`glass-panel app-sidebar ${isSidebarOpen ? 'open' : 'closed'}`}>
             <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
@@ -386,7 +397,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
                 onClick={() => setIsSidebarOpen(false)}
             />
         )}
-        <div className="glass-panel app-main">
+        <div className="glass-panel app-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, transition: 'all 0.3s ease' }}>
           <FilePreview 
             file={selectedFile}
             content={editedContent}
@@ -396,7 +407,70 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
             onContentChange={setEditedContent}
           />
         </div>
+
+        {/* Desktop AI Sidebar */}
+        {!isMobile && (
+            <div style={{
+                width: isAIOpen ? '350px' : '0',
+                marginLeft: isAIOpen ? '16px' : '0',
+                opacity: isAIOpen ? 1 : 0,
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                background: 'var(--bg-panel)',
+                border: '1px solid var(--border-glass)',
+                borderRadius: 'var(--radius-md)',
+                borderBottomLeftRadius: 0,
+                borderBottomRightRadius: 0,
+                boxShadow: 'var(--shadow-sm)',
+                overflow: 'hidden',
+                flexShrink: 0,
+                display: 'flex',
+                flexDirection: 'column',
+            }}>
+                 <AISidebar 
+                    currentFile={selectedFile ? { name: selectedFile.name, content: editedContent } : null}
+                    onFileUpdate={(newContent) => {
+                        setEditedContent(newContent);
+                    }}
+                />
+            </div>
+        )}
       </div>
+
+      {/* Mobile AI Sidebar (Bottom Sheet) */}
+      {isMobile && isAIOpen && (
+        <div className="ai-mobile-sheet">
+             <AISidebar 
+                currentFile={selectedFile ? { name: selectedFile.name, content: editedContent } : null}
+                onFileUpdate={(newContent) => {
+                    setEditedContent(newContent);
+                }}
+            />
+        </div>
+      )}
+      
+      <style>{`
+        .ai-mobile-sheet {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 80vh;
+            background: var(--bg-panel);
+            border-top: 1px solid var(--border-subtle);
+            border-top-left-radius: 16px;
+            border-top-right-radius: 16px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.2);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            animation: slideUp 0.3s ease-out;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+      `}</style>
 
       {/* Modal Overlay */}
       {showConfigModal && (
@@ -421,7 +495,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
                 position: 'relative'
             }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                    <h3 style={{ margin: 0 }}>OSS 配置</h3>
+                    <h3 style={{ margin: 0 }}>设置</h3>
                     <button onClick={() => setShowConfigModal(false)} className="glass-button" style={{ padding: '8px' }}>
                         <FaTimes />
                     </button>
@@ -440,6 +514,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
             </div>
         </div>
       )}
+
     </div>
   );
 };

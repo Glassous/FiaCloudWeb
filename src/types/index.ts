@@ -6,6 +6,12 @@ export interface OSSConfigData {
   endpoint: string;
 }
 
+export interface AIConfigData {
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+}
+
 export interface OSSFile {
   name: string;
   url: string;
