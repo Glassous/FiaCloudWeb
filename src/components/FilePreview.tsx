@@ -55,6 +55,10 @@ const FilePreview: React.FC<FilePreviewProps> = ({
                   file.name.toLowerCase().endsWith('.png') || 
                   file.name.toLowerCase().endsWith('.gif') || 
                   file.name.toLowerCase().endsWith('.webp')) : false;
+  
+  const isVideo = file ? (file.name.toLowerCase().endsWith('.mp4') || 
+                  file.name.toLowerCase().endsWith('.webm') || 
+                  file.name.toLowerCase().endsWith('.ogg')) : false;
 
   useEffect(() => {
       if (showExif && previewUrl && isImage && file) {
@@ -398,10 +402,36 @@ const FilePreview: React.FC<FilePreviewProps> = ({
                       </div>
                   )}
               </div>
+          ) : isVideo ? (
+              <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'center', 
+                  alignItems: 'center', 
+                  height: '100%', 
+                  backgroundColor: 'rgba(0,0,0,0.1)',
+                  padding: '20px'
+              }}>
+                  {previewUrl ? (
+                      <video 
+                          controls
+                          src={previewUrl} 
+                          style={{ 
+                              maxWidth: '100%', 
+                              maxHeight: '100%', 
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                              borderRadius: '8px'
+                          }} 
+                      >
+                          您的浏览器不支持视频播放。
+                      </video>
+                  ) : (
+                      <div>无法加载视频预览</div>
+                  )}
+              </div>
           ) : (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', flexDirection: 'column', color: 'var(--text-secondary)' }}>
                <div style={{ fontSize: 40, marginBottom: 10 }}>📦</div>
-               <div>当前仅支持预览文本文件和图片，请下载查看</div>
+               <div>当前仅支持预览文本文件、图片和视频，请下载查看</div>
             </div>
           )
         )}

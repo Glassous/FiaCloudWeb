@@ -204,7 +204,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
                    file.name.toLowerCase().endsWith('.gif') || 
                    file.name.toLowerCase().endsWith('.webp');
 
-      if (isImg) {
+      const isVideo = file.name.toLowerCase().endsWith('.mp4') || 
+                      file.name.toLowerCase().endsWith('.webm') || 
+                      file.name.toLowerCase().endsWith('.ogg');
+
+      if (isImg || isVideo) {
           const url = await getFileUrl(file.name);
           setPreviewUrl(url);
       }
