@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { FaLock } from 'react-icons/fa';
-import { encrypt, decrypt } from '../utils/crypto';
+import React, { useState } from 'react';
+import { FaLock, FaExclamationTriangle } from 'react-icons/fa';
+import { decrypt } from '../utils/crypto';
 import { useUI } from '../contexts/UIContext';
 
 interface LoginProps {
@@ -9,66 +9,41 @@ interface LoginProps {
 
 const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   const [password, setPassword] = useState('');
-  const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetConfirmation, setResetConfirmation] = useState('');
   const { showToast } = useUI();
-
-  useEffect(() => {
-    const savedPassword = localStorage.getItem('fiacloud_auth');
-    if (savedPassword) {
-      try {
-        const decryptedPassword = decrypt(savedPassword);
-        const envPassword = import.meta.env.VITE_APP_ACCESS_PASSWORD;
-        
-        setPassword(decryptedPassword);
-        setRemember(true);
-
-        // Auto login if password matches
-        if (decryptedPassword === envPassword) {
-            onLoginSuccess();
-        }
-      } catch (error) {
-        localStorage.removeItem('fiacloud_auth');
-      }
-    }
-  }, [onLoginSuccess]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const envPassword = import.meta.env.VITE_APP_ACCESS_PASSWORD;
     
     // Simulate a slight delay for better UX
     setTimeout(() => {
-      if (password === envPassword) {
-        if (remember) {
-          localStorage.setItem('fiacloud_auth', encrypt(password));
+        const storedSystemPassword = localStorage.getItem('fiacloud_access_password');
+        
+        if (!storedSystemPassword) {
+            // No password set, allow entry
+            onLoginSuccess();
         } else {
-          localStorage.removeItem('fiacloud_auth');
-        }
-        onLoginSuccess();
-      } else {
-        // If it was a saved password that failed (e.g. env var changed), we should warn
-        const savedPassword = localStorage.getItem('fiacloud_auth');
-        if (savedPassword) {
             try {
-                 const decrypted = decrypt(savedPassword);
-                 if (decrypted === password && password !== envPassword) {
-                     showToast('密码已修改，请重新输入', 'error');
-                     localStorage.removeItem('fiacloud_auth'); // Clear invalid password
-                     setPassword('');
-                 } else {
+                const decryptedSystemPassword = decrypt(storedSystemPassword);
+                if (password === decryptedSystemPassword) {
+                    onLoginSuccess();
+                } else {
                     showToast('密码错误', 'error');
-                 }
-            } catch {
-                showToast('密码错误', 'error');
+                }
+            } catch (e) {
+                showToast('系统密码校验失败，请清除缓存重试', 'error');
             }
-        } else {
-            showToast('密码错误', 'error');
         }
-      }
-      setLoading(false);
+        setLoading(false);
     }, 500);
+  };
+
+  const handleReset = () => {
+      localStorage.clear();
+      window.location.reload();
   };
 
   return (
@@ -87,7 +62,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
         </div>
         
         <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: 24 }}>
+          <div style={{ marginBottom: 32 }}>
             <div className="glass-input" style={{ 
                 display: 'flex', 
                 alignItems: 'center', 
@@ -98,8 +73,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                     type="password" 
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="访问密码" 
-                    required
+                    placeholder="访问密码 (未设置密码可直接登录)" 
                     style={{
                         border: 'none',
                         outline: 'none',
@@ -110,18 +84,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                     }}
                 />
             </div>
-          </div>
-
-          <div style={{ marginBottom: 32 }}>
-            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                <input 
-                    type="checkbox" 
-                    checked={remember}
-                    onChange={(e) => setRemember(e.target.checked)}
-                    style={{ marginRight: 8, accentColor: 'var(--accent-primary)' }}
-                />
-                <span className="text-secondary">记住密码</span>
-            </label>
           </div>
 
           <div>
@@ -140,9 +102,124 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             >
               {loading ? '验证中...' : '进入系统'}
             </button>
+            
+            <div style={{ textAlign: 'center', marginTop: 16 }}>
+                <button
+                    type="button"
+                    onClick={() => setShowResetModal(true)}
+                    style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--text-secondary)',
+                        fontSize: 14,
+                        cursor: 'pointer',
+                        textDecoration: 'underline',
+                        opacity: 0.8
+                    }}
+                >
+                    忘记密码？
+                </button>
+            </div>
           </div>
         </form>
       </div>
+
+      {/* Reset Confirmation Modal */}
+      {showResetModal && (
+          <div style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0,0,0,0.6)',
+              backdropFilter: 'blur(4px)',
+              zIndex: 10000,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              animation: 'fadeIn 0.2s ease-out'
+          }}>
+              <div className="glass-panel" style={{
+                  width: '450px',
+                  maxWidth: '90vw',
+                  padding: '32px',
+                  borderRadius: '16px',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+                  border: '1px solid rgba(255, 77, 79, 0.3)'
+              }}>
+                  <div style={{ textAlign: 'center', marginBottom: 24 }}>
+                      <div style={{ 
+                          width: 60, height: 60, borderRadius: '50%', 
+                          background: 'rgba(255, 77, 79, 0.1)', 
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          margin: '0 auto 16px auto',
+                          color: '#ff4d4f'
+                      }}>
+                          <FaExclamationTriangle size={30} />
+                      </div>
+                      <h3 style={{ margin: 0, fontSize: 20, fontWeight: 600, color: '#ff4d4f' }}>
+                          危险操作警告
+                      </h3>
+                  </div>
+
+                  <div style={{ marginBottom: 24, color: 'var(--text-secondary)', lineHeight: 1.6, fontSize: 14 }}>
+                      <p>您正在申请重置系统。此操作将产生以下后果：</p>
+                      <ul style={{ paddingLeft: 20, margin: '8px 0' }}>
+                          <li>清除所有本地存储的配置信息</li>
+                          <li>清除已保存的 AccessKey 和密钥</li>
+                          <li>清除 AI 模型设置和历史记录</li>
+                          <li>重置登录密码</li>
+                      </ul>
+                      <p style={{ fontWeight: 600, color: 'var(--text-primary)' }}>此操作不可恢复！</p>
+                  </div>
+
+                  <div style={{ marginBottom: 24 }}>
+                      <label style={{ display: 'block', marginBottom: 8, fontSize: 13, color: 'var(--text-secondary)' }}>
+                          请在下方输入 <span style={{ userSelect: 'all', fontWeight: 'bold', color: 'var(--text-primary)' }}>我确认忘记密码并确认清空数据</span> 以确认：
+                      </label>
+                      <input 
+                          type="text" 
+                          value={resetConfirmation}
+                          onChange={(e) => setResetConfirmation(e.target.value)}
+                          className="glass-input"
+                          placeholder="在此输入确认文本"
+                          style={{ width: '100%', border: '1px solid rgba(255, 77, 79, 0.3)' }}
+                      />
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 12 }}>
+                      <button 
+                          onClick={() => {
+                              setShowResetModal(false);
+                              setResetConfirmation('');
+                          }}
+                          className="glass-button"
+                          style={{ flex: 1, justifyContent: 'center', height: 40 }}
+                      >
+                          取消
+                      </button>
+                      <button 
+                          onClick={handleReset}
+                          disabled={resetConfirmation !== '我确认忘记密码并确认清空数据'}
+                          className="glass-button"
+                          style={{ 
+                              flex: 1, 
+                              justifyContent: 'center', 
+                              height: 40,
+                              backgroundColor: 'var(--error, #ff4d4f)',
+                              color: '#fff',
+                              border: 'none',
+                              opacity: resetConfirmation !== '我确认忘记密码并确认清空数据' ? 0.5 : 1,
+                              cursor: resetConfirmation !== '我确认忘记密码并确认清空数据' ? 'not-allowed' : 'pointer'
+                          }}
+                      >
+                          确认重置系统
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
     </div>
   );
 };

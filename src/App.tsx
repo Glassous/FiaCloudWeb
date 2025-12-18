@@ -7,7 +7,10 @@ import { AIProvider } from './contexts/AIContext'
 import './index.css'
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+      // Allow access if no password is set
+      return !localStorage.getItem('fiacloud_access_password');
+  })
 
   return (
     <ThemeProvider>

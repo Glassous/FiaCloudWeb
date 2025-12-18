@@ -271,21 +271,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
     await createFolder(folderName, parentPath);
   };
 
-  const handleClearConfig = () => {
-      showConfirm({
-          title: '清除配置确认',
-          message: '确定要清除 OSS 配置吗？这将需要重新输入 AccessKey 等信息。',
-          type: 'danger',
-          onConfirm: () => {
-              localStorage.removeItem('fiacloud_oss_config');
-              setIsConfigured(false);
-              setSelectedFile(null);
-              setShowConfigModal(false);
-              showToast('配置已清除', 'success');
-          }
-      });
-  };
-
   const getThemeIcon = () => {
     if (theme === 'light') return <FaSun />;
     if (theme === 'dark') return <FaMoon />;
@@ -692,15 +677,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
                 </div>
                 
                 <OSSConfig onConfigSaved={handleConfigSaved} />
-                
-                <div style={{ marginTop: 16, textAlign: 'right', borderTop: '1px solid var(--border-subtle)', paddingTop: '16px' }}>
-                    <button 
-                        onClick={handleClearConfig}
-                        className="glass-button danger"
-                    >
-                        清除配置
-                    </button>
-                </div>
             </div>
         </div>
       )}

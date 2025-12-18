@@ -3,7 +3,7 @@ import { ossRegions, getEndpoint } from '../utils/regions';
 import type { OSSConfigData, AIConfigData, R2ConfigData, StorageProvider } from '../types';
 import { encrypt, decrypt } from '../utils/crypto';
 import { useUI } from '../contexts/UIContext';
-import { FaServer, FaCloud, FaMagic, FaCheckCircle } from 'react-icons/fa';
+import { FaServer, FaCloud, FaMagic, FaCheckCircle, FaLock } from 'react-icons/fa';
 
 interface OSSConfigProps {
   onConfigSaved: (provider: StorageProvider, config: OSSConfigData | R2ConfigData) => void;
@@ -12,7 +12,7 @@ interface OSSConfigProps {
 
 const OSSConfig: React.FC<OSSConfigProps> = ({ onConfigSaved, onAIConfigSaved }) => {
   const { showToast } = useUI();
-  const [activeTab, setActiveTab] = useState<'aliyun' | 'r2' | 'ai'>('aliyun');
+  const [activeTab, setActiveTab] = useState<'aliyun' | 'r2' | 'ai' | 'security'>('aliyun');
   const [activeProvider, setActiveProvider] = useState<StorageProvider>('aliyun');
 
   const [ossFormData, setOssFormData] = useState<OSSConfigData>({
@@ -32,9 +32,15 @@ const OSSConfig: React.FC<OSSConfigProps> = ({ onConfigSaved, onAIConfigSaved })
   });
 
   const [aiFormData, setAiFormData] = useState<AIConfigData>({
-    baseUrl: 'https://api.openai.com/v1',
+    baseUrl: '',
     apiKey: '',
-    model: 'gpt-3.5-turbo'
+    model: ''
+  });
+
+  const [passwordFormData, setPasswordFormData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
   });
 
   useEffect(() => {
@@ -108,6 +114,11 @@ const OSSConfig: React.FC<OSSConfigProps> = ({ onConfigSaved, onAIConfigSaved })
       setAiFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const { name, value } = e.target;
+      setPasswordFormData(prev => ({ ...prev, [name]: value }));
+  };
+
   const handleSave = (e: React.FormEvent | React.MouseEvent, shouldSwitch: boolean = false) => {
     e.preventDefault();
     let success = true;
@@ -146,6 +157,55 @@ const OSSConfig: React.FC<OSSConfigProps> = ({ onConfigSaved, onAIConfigSaved })
             success = false;
             showToast('AI配置保存失败', 'error');
         }
+    } else if (activeTab === 'security') {
+        const { currentPassword, newPassword, confirmPassword } = passwordFormData;
+        
+        if (newPassword !== confirmPassword) {
+            showToast('两次输入的新密码不一致', 'error');
+            return;
+        }
+        
+        if (newPassword.length < 4) {
+             showToast('新密码长度不能少于4位', 'error');
+             return;
+        }
+
+        const storedPasswordEncrypted = localStorage.getItem('fiacloud_access_password');
+        
+        // If password is set, verify current password
+        if (storedPasswordEncrypted) {
+             try {
+                 const storedPassword = decrypt(storedPasswordEncrypted);
+                 if (currentPassword !== storedPassword) {
+                     showToast('当前密码错误', 'error');
+                     return;
+                 }
+             } catch (e) {
+                 // If decrypt fails, we might as well allow reset or it's broken
+                 console.error('Failed to decrypt stored password', e);
+             }
+        }
+        
+        try {
+            localStorage.setItem('fiacloud_access_password', encrypt(newPassword));
+            // Also update the current session auth to prevent logout/re-login need immediately if desired,
+            // or maybe just keep it. 
+            // Update: actually Login.tsx uses 'fiacloud_auth' to store the *current session* password.
+            // If we change the system password, we should probably update the session password too so the user isn't logged out,
+            // OR force them to re-login. Let's update session so they stay logged in.
+            localStorage.setItem('fiacloud_auth', encrypt(newPassword));
+            
+            setPasswordFormData({
+                currentPassword: '',
+                newPassword: '',
+                confirmPassword: ''
+            });
+            showToast('密码修改成功', 'success');
+        } catch (e) {
+            success = false;
+            showToast('密码保存失败', 'error');
+        }
+        return; // Return here as security tab doesn't use the switch logic below
     }
 
     if (success) {
@@ -192,6 +252,7 @@ const OSSConfig: React.FC<OSSConfigProps> = ({ onConfigSaved, onAIConfigSaved })
                     cursor: 'pointer', 
                     borderRadius: '8px',
                     backgroundColor: activeTab === 'aliyun' ? 'var(--bg-secondary)' : 'transparent',
+                    color: activeTab === 'aliyun' ? 'var(--accent-primary)' : 'var(--text-primary)',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '8px',
@@ -210,6 +271,7 @@ const OSSConfig: React.FC<OSSConfigProps> = ({ onConfigSaved, onAIConfigSaved })
                     cursor: 'pointer', 
                     borderRadius: '8px',
                     backgroundColor: activeTab === 'r2' ? 'var(--bg-secondary)' : 'transparent',
+                    color: activeTab === 'r2' ? 'var(--accent-primary)' : 'var(--text-primary)',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '8px',
@@ -228,6 +290,7 @@ const OSSConfig: React.FC<OSSConfigProps> = ({ onConfigSaved, onAIConfigSaved })
                     cursor: 'pointer', 
                     borderRadius: '8px',
                     backgroundColor: activeTab === 'ai' ? 'var(--bg-secondary)' : 'transparent',
+                    color: activeTab === 'ai' ? 'var(--accent-primary)' : 'var(--text-primary)',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '8px',
@@ -236,6 +299,24 @@ const OSSConfig: React.FC<OSSConfigProps> = ({ onConfigSaved, onAIConfigSaved })
                 }}
             >
                 <FaMagic /> AI Configuration
+            </div>
+             <div 
+                className={`config-tab ${activeTab === 'security' ? 'active' : ''}`}
+                onClick={() => setActiveTab('security')}
+                style={{ 
+                    padding: '10px 12px', 
+                    cursor: 'pointer', 
+                    borderRadius: '8px',
+                    backgroundColor: activeTab === 'security' ? 'var(--bg-secondary)' : 'transparent',
+                    color: activeTab === 'security' ? 'var(--accent-primary)' : 'var(--text-primary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontSize: '14px',
+                    fontWeight: 500
+                }}
+            >
+                <FaLock /> 安全设置
             </div>
         </div>
 
@@ -411,7 +492,48 @@ const OSSConfig: React.FC<OSSConfigProps> = ({ onConfigSaved, onAIConfigSaved })
                                 name="model"
                                 value={aiFormData.model}
                                 onChange={handleAIChange}
-                                placeholder="gpt-3.5-turbo"
+                                placeholder="gpt-5.2"
+                                className="glass-input"
+                            />
+                        </div>
+                    </>
+                )}
+
+                {activeTab === 'security' && (
+                    <>
+                        <h3 style={{ marginTop: 0, marginBottom: 24 }}>安全设置</h3>
+                        {localStorage.getItem('fiacloud_access_password') && (
+                            <div style={formItemStyle}>
+                                <label style={labelStyle}>当前密码</label>
+                                <input
+                                    type="password"
+                                    name="currentPassword"
+                                    value={passwordFormData.currentPassword}
+                                    onChange={handlePasswordChange}
+                                    placeholder="请输入当前密码"
+                                    className="glass-input"
+                                />
+                            </div>
+                        )}
+                        <div style={formItemStyle}>
+                            <label style={labelStyle}>新密码</label>
+                            <input
+                                type="password"
+                                name="newPassword"
+                                value={passwordFormData.newPassword}
+                                onChange={handlePasswordChange}
+                                placeholder="请输入新密码"
+                                className="glass-input"
+                            />
+                        </div>
+                        <div style={formItemStyle}>
+                            <label style={labelStyle}>确认新密码</label>
+                            <input
+                                type="password"
+                                name="confirmPassword"
+                                value={passwordFormData.confirmPassword}
+                                onChange={handlePasswordChange}
+                                placeholder="请再次输入新密码"
                                 className="glass-input"
                             />
                         </div>
@@ -419,7 +541,7 @@ const OSSConfig: React.FC<OSSConfigProps> = ({ onConfigSaved, onAIConfigSaved })
                 )}
 
                 <div style={{ marginTop: 24, display: 'flex', gap: '12px' }}>
-                    {activeTab !== 'ai' && (
+                    {activeTab !== 'ai' && activeTab !== 'security' && (
                         <>
                             <button
                                 type="button"
@@ -465,6 +587,22 @@ const OSSConfig: React.FC<OSSConfigProps> = ({ onConfigSaved, onAIConfigSaved })
                             }}
                         >
                             保存 AI 配置
+                        </button>
+                    )}
+                    {activeTab === 'security' && (
+                         <button
+                            type="button"
+                            onClick={(e) => handleSave(e, false)}
+                            className="glass-button primary"
+                            style={{
+                                width: '100%',
+                                height: 40,
+                                fontSize: 14,
+                                fontWeight: 500,
+                                justifyContent: 'center'
+                            }}
+                        >
+                            保存密码设置
                         </button>
                     )}
                 </div>
