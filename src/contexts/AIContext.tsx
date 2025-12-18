@@ -33,6 +33,12 @@ interface AIContextType {
   selectConversation: (id: string) => void;
   deleteConversation: (id: string) => void;
   addMessage: (role: 'user' | 'assistant' | 'system', content: string) => void;
+  pendingEditContent: string | null;
+  originalEditContent: string | null;
+  setPendingEditContent: (content: string | null) => void;
+  acceptEdit: () => void;
+  rejectEdit: () => void;
+  generateEdit: (instruction: string, fileContent: string, onUpdate: (content: string) => void) => Promise<void>;
 }
 
 const AIContext = createContext<AIContextType | undefined>(undefined);
@@ -54,6 +60,9 @@ export const AIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const [pendingEditContent, setPendingEditContent] = useState<string | null>(null);
+  const [originalEditContent, setOriginalEditContent] = useState<string | null>(null);
+  
   useEffect(() => {
     loadConfig();
     loadConversations();
@@ -238,7 +247,8 @@ export const AIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
                 body: JSON.stringify({
                 model: config.model,
                 messages: chatMessages,
-                temperature: 0.7
+                temperature: 0.7,
+                stream: true
                 })
             });
 
@@ -246,14 +256,52 @@ export const AIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
                 throw new Error(`API Error: ${response.statusText}`);
             }
 
-            const data = await response.json();
-            const assistantMsg: Message = {
-                role: 'assistant',
-                content: data.choices[0].message.content
-            };
+            // Initialize empty assistant message
+            let assistantContent = '';
+            const assistantMsg: Message = { role: 'assistant', content: '' };
+            
+            // Add empty assistant message to state so we can stream into it
+            updateConversationsState(prev => prev.map(c => c.id === newId ? { ...c, messages: [...newMsgs, assistantMsg] } : c));
 
-            const finalMsgs = [...newMsgs, assistantMsg];
-            updateConversationsState(prev => prev.map(c => c.id === newId ? { ...c, messages: finalMsgs } : c));
+            const reader = response.body?.getReader();
+            if (!reader) throw new Error('Response body is not readable');
+
+            const decoder = new TextDecoder();
+            
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value);
+                const lines = chunk.split('\n');
+                
+                for (const line of lines) {
+                    if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+                        try {
+                            const data = JSON.parse(line.slice(6));
+                            const content = data.choices[0]?.delta?.content || '';
+                            if (content) {
+                                assistantContent += content;
+                                
+                                // Update state with new content
+                                updateConversationsState(prev => prev.map(c => {
+                                    if (c.id === newId) {
+                                        const msgs = [...c.messages];
+                                        const lastMsg = msgs[msgs.length - 1];
+                                        if (lastMsg.role === 'assistant') {
+                                            msgs[msgs.length - 1] = { ...lastMsg, content: assistantContent };
+                                        }
+                                        return { ...c, messages: msgs };
+                                    }
+                                    return c;
+                                }));
+                            }
+                        } catch (e) {
+                            console.error('Error parsing stream chunk', e);
+                        }
+                    }
+                }
+            }
 
         } catch (error: any) {
             const errorMsg: Message = { role: 'assistant', content: `Error: ${error.message}` };
@@ -288,7 +336,8 @@ export const AIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         body: JSON.stringify({
           model: config.model,
           messages: chatMessages,
-          temperature: 0.7
+          temperature: 0.7,
+          stream: true
         })
       });
 
@@ -296,19 +345,58 @@ export const AIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         throw new Error(`API Error: ${response.statusText}`);
       }
 
-      const data = await response.json();
-      const assistantMsg: Message = {
-        role: 'assistant',
-        content: data.choices[0].message.content
-      };
-
-      // Use functional update again to ensure we don't lose state
+      // Initialize empty assistant message
+      let assistantContent = '';
+      const assistantMsg: Message = { role: 'assistant', content: '' };
+      
+      // Add empty assistant message to state so we can stream into it
       updateConversationsState(prev => prev.map(c => {
           if (c.id === currentConversationId) {
               return { ...c, messages: [...newMsgs, assistantMsg] };
           }
           return c;
       }));
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('Response body is not readable');
+
+      const decoder = new TextDecoder();
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+            if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+                try {
+                    const data = JSON.parse(line.slice(6));
+                    const content = data.choices[0]?.delta?.content || '';
+                    if (content) {
+                        assistantContent += content;
+                        
+                        // Update state with new content
+                        updateConversationsState(prev => prev.map(c => {
+                            if (c.id === currentConversationId) {
+                                const msgs = [...c.messages];
+                                const lastMsg = msgs[msgs.length - 1];
+                                if (lastMsg.role === 'assistant') {
+                                    msgs[msgs.length - 1] = { ...lastMsg, content: assistantContent };
+                                }
+                                return { ...c, messages: msgs };
+                            }
+                            return c;
+                        }));
+                    }
+                } catch (e) {
+                    console.error('Error parsing stream chunk', e);
+                }
+            }
+        }
+      }
+
     } catch (error: any) {
        updateConversationsState(prev => prev.map(c => {
           if (c.id === currentConversationId) {
@@ -321,47 +409,194 @@ export const AIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     }
   };
   
-  const generateEdit = async (instruction: string, fileContent: string): Promise<string> => {
+  const generateEdit = async (instruction: string, fileContent: string, onUpdate: (content: string) => void): Promise<void> => {
       if (!config) throw new Error("AI not configured");
       
+      setOriginalEditContent(fileContent);
+      setPendingEditContent(fileContent); // Initialize pending with current
+      
+      const tools = [
+        {
+          type: "function",
+          function: {
+            name: "update_file",
+            description: "Update the content of the current file based on user instructions. You must provide the FULL content of the file.",
+            parameters: {
+              type: "object",
+              properties: {
+                new_content: {
+                  type: "string",
+                  description: "The new full content of the file."
+                }
+              },
+              required: ["new_content"]
+            }
+          }
+        }
+      ];
+
       const prompt = `You are a code editor. 
 User Instruction: ${instruction}
 
 Current File Content:
 ${fileContent}
 
-Return ONLY the full updated file content. Do not include markdown code blocks or explanations unless strictly necessary for the file format.`;
+Please use the 'update_file' tool to provide the new file content.`;
 
-      const response = await fetch(`${config.baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${config.apiKey}`
-        },
-        body: JSON.stringify({
-          model: config.model,
-          messages: [{ role: 'user', content: prompt }],
-          temperature: 0.2
-        })
-      });
+      setLoading(true);
 
-      if (!response.ok) {
-        throw new Error(`API Error: ${response.statusText}`);
+      try {
+        const response = await fetch(`${config.baseUrl}/chat/completions`, {
+            method: 'POST',
+            headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${config.apiKey}`
+            },
+            body: JSON.stringify({
+            model: config.model,
+            messages: [{ role: 'user', content: prompt }],
+            tools: tools,
+            tool_choice: "auto",
+            stream: true,
+            temperature: 0.2
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`API Error: ${response.statusText}`);
+        }
+
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error('Response body is not readable');
+
+        const decoder = new TextDecoder();
+        let toolArguments = '';
+        
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\n');
+            
+            for (const line of lines) {
+                if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+                    try {
+                        const data = JSON.parse(line.slice(6));
+                        const toolCalls = data.choices[0]?.delta?.tool_calls;
+                        
+                        if (toolCalls && toolCalls.length > 0) {
+                            const args = toolCalls[0].function?.arguments || '';
+                            toolArguments += args;
+                            
+                            // Try to extract content from partial JSON
+                            // This is a simple heuristic to update the UI while streaming
+                            // It assumes the structure {"new_content": "..."}
+                            
+                            // Check if we have started the content field
+                            const contentStart = toolArguments.indexOf('"new_content"');
+                            if (contentStart !== -1) {
+                                // Find the first quote after the colon
+                                const colonIndex = toolArguments.indexOf(':', contentStart);
+                                if (colonIndex !== -1) {
+                                    const quoteIndex = toolArguments.indexOf('"', colonIndex);
+                                    if (quoteIndex !== -1) {
+                                        // We have started the string. 
+                                        // Now we need to decode the string value which might be incomplete
+                                        // A robust partial JSON parser is complex, but we can try a best effort approach
+                                        // or just wait for valid JSON chunks if the model streams well.
+                                        
+                                        // Simplified approach: Just try to parse the whole thing if it looks like it might be valid JSON
+                                        // or manually unescape the string part we have so far.
+                                        
+                                        // Let's try to grab everything after the opening quote
+                                        let rawContent = toolArguments.slice(quoteIndex + 1);
+                                        
+                                        // If the last char is ", it might be the end, or an escaped quote.
+                                        // Since we are streaming, we probably haven't reached the end quote of the JSON structure unless it's done.
+                                        
+                                        // Manual unescape for display purposes
+                                        // Note: JSON.parse is safer but fails on partials.
+                                        // We will try to unescape standard JSON escapes: \" \\ \n \r \t
+                                        
+                                        let displayContent = rawContent
+                                            .replace(/\\"/g, '"')
+                                            .replace(/\\\\/g, '\\')
+                                            .replace(/\\n/g, '\n')
+                                            .replace(/\\r/g, '\r')
+                                            .replace(/\\t/g, '\t');
+                                            
+                                        // Only update if we have something substantial
+                                        if (displayContent) {
+                                            onUpdate(displayContent);
+                                            setPendingEditContent(displayContent);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        // Ignore parse errors for partial chunks
+                    }
+                }
+            }
+        }
+        
+        // Final parse to ensure correctness
+        try {
+             // Sometimes the arguments might be truncated or slightly malformed if stream cut off,
+             // but usually it's complete.
+             const parsedArgs = JSON.parse(toolArguments);
+             if (parsedArgs.new_content) {
+                 onUpdate(parsedArgs.new_content);
+                 setPendingEditContent(parsedArgs.new_content);
+             }
+        } catch (e) {
+            console.error('Final JSON parse error', e);
+        }
+
+      } catch (error) {
+        console.error("Generate Edit Error", error);
+        throw error;
+      } finally {
+        setLoading(false);
       }
-
-      const data = await response.json();
-      let content = data.choices[0].message.content;
-      
-      // Clean up markdown code blocks if present
-      if (content.startsWith('```') && content.endsWith('```')) {
-          const lines = content.split('\n');
-          content = lines.slice(1, -1).join('\n');
-      }
-      
-      return content;
   };
 
-  const toggleEditMode = () => setIsEditMode(prev => !prev);
+  const acceptEdit = () => {
+      setPendingEditContent(null);
+      setOriginalEditContent(null);
+      // Content is already in the file view, so we just clear the pending state
+      // allowing normal interaction again.
+  };
+
+  const rejectEdit = () => {
+      if (originalEditContent !== null) {
+          // We need a way to revert the content in the file view.
+          // Since we don't have direct access to setEditedContent here (it's in MainLayout),
+          // we rely on the fact that pendingEditContent is set to null, 
+          // AND we should probably have a callback or mechanism to revert.
+          // Actually, MainLayout should listen to pendingEditContent changes?
+          // No, MainLayout passes onFileUpdate to AISidebar.
+          // But here we need to trigger a revert.
+          
+          // Let's change how we expose this.
+          // If we return the original content via a callback or expose it?
+      }
+      setPendingEditContent(null);
+      setOriginalEditContent(null);
+  };
+
+  const toggleEditMode = () => {
+      setIsEditMode(prev => {
+          if (prev) {
+              // Exiting edit mode
+              setPendingEditContent(null);
+              setOriginalEditContent(null);
+          }
+          return !prev;
+      });
+  };
   
   const addMessage = (role: 'user' | 'assistant' | 'system', content: string) => {
     updateConversationsState(prev => prev.map(c => {
@@ -393,7 +628,12 @@ Return ONLY the full updated file content. Do not include markdown code blocks o
       startNewConversation,
       selectConversation,
       deleteConversation,
-      addMessage
+      addMessage,
+      pendingEditContent,
+      originalEditContent,
+      setPendingEditContent,
+      acceptEdit,
+      rejectEdit
     }}>
       {children}
     </AIContext.Provider>

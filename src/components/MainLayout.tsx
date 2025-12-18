@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FaSignOutAlt, FaCog, FaTimes, FaSun, FaMoon, FaAdjust, FaBars, FaDownload, FaSearchPlus, FaSearchMinus, FaEllipsisV, FaCode, FaEye, FaSave, FaRobot } from 'react-icons/fa';
 import OSSConfig from './OSSConfig';
 import FileList from './FileList';
@@ -30,7 +30,72 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
   
   const { theme, cycleTheme } = useTheme();
   const { showConfirm, showToast } = useUI();
-  const { toggleSidebar: toggleAISidebar, isOpen: isAIOpen } = useAI();
+  const { toggleSidebar: toggleAISidebar, isOpen: isAIOpen, isEditMode } = useAI();
+
+  // Resizing Logic
+  const [sidebarWidth, setSidebarWidth] = useState(() => parseInt(localStorage.getItem('sidebarWidth') || '250'));
+  const [aiSidebarWidth, setAiSidebarWidth] = useState(() => parseInt(localStorage.getItem('aiSidebarWidth') || '350'));
+  const [isResizingLeft, setIsResizingLeft] = useState(false);
+  const [isResizingRight, setIsResizingRight] = useState(false);
+  const isResizingLeftRef = useRef(false);
+  const isResizingRightRef = useRef(false);
+
+  useEffect(() => {
+    localStorage.setItem('sidebarWidth', sidebarWidth.toString());
+  }, [sidebarWidth]);
+
+  useEffect(() => {
+    localStorage.setItem('aiSidebarWidth', aiSidebarWidth.toString());
+  }, [aiSidebarWidth]);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isResizingLeftRef.current) {
+        const newWidth = e.clientX;
+        if (newWidth > 150 && newWidth < 600) {
+          setSidebarWidth(newWidth);
+        }
+      } else if (isResizingRightRef.current) {
+        const newWidth = window.innerWidth - e.clientX;
+        if (newWidth > 200 && newWidth < 800) {
+            setAiSidebarWidth(newWidth);
+        }
+      }
+    };
+
+    const handleMouseUp = () => {
+      if (isResizingLeftRef.current || isResizingRightRef.current) {
+        isResizingLeftRef.current = false;
+        isResizingRightRef.current = false;
+        setIsResizingLeft(false);
+        setIsResizingRight(false);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
+
+  const startResizingLeft = useCallback(() => {
+      setIsResizingLeft(true);
+      isResizingLeftRef.current = true;
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+  }, []);
+
+  const startResizingRight = useCallback(() => {
+      setIsResizingRight(true);
+      isResizingRightRef.current = true;
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+  }, []);
 
   useEffect(() => {
     const handleResize = () => {
@@ -112,7 +177,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
         const content = await getFileContent(file.name);
         setFileContent(content);
         setEditedContent(content);
-        if (file.name.endsWith('.md') || file.name.endsWith('.csv')) {
+        if ((file.name.endsWith('.md') || file.name.endsWith('.csv')) && !isEditMode) {
             setViewMode('preview');
         } else {
             setViewMode('source');
@@ -124,6 +189,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
         setFileContent('');
     }
   };
+
+  useEffect(() => {
+    if (isEditMode) {
+        setViewMode('source');
+    }
+  }, [isEditMode]);
 
   const handleSave = async () => {
     if (!selectedFile) return;
@@ -239,6 +310,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
                                     <div style={{ display: 'flex', backgroundColor: 'rgba(128,128,128,0.1)', borderRadius: '6px', padding: '2px', marginRight: '8px' }}>
                                         <button
                                             onClick={() => setViewMode('preview')}
+                                            disabled={isEditMode}
                                             className="glass-button"
                                             style={{ 
                                                 padding: '6px 10px', 
@@ -246,14 +318,17 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
                                                 backgroundColor: viewMode === 'preview' ? 'var(--bg-primary)' : 'transparent',
                                                 boxShadow: viewMode === 'preview' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
                                                 border: 'none',
-                                                color: viewMode === 'preview' ? 'var(--text-primary)' : 'var(--text-secondary)'
+                                                color: viewMode === 'preview' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                                                opacity: isEditMode ? 0.5 : 1,
+                                                cursor: isEditMode ? 'not-allowed' : 'pointer'
                                             }}
-                                            title="预览"
+                                            title={isEditMode ? "AI编辑模式下禁用预览" : "预览"}
                                         >
                                             <FaEye />
                                         </button>
                                         <button
                                             onClick={() => setViewMode('source')}
+                                            disabled={isEditMode}
                                             className="glass-button"
                                             style={{ 
                                                 padding: '6px 10px', 
@@ -261,7 +336,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
                                                 backgroundColor: viewMode === 'source' ? 'var(--bg-primary)' : 'transparent',
                                                 boxShadow: viewMode === 'source' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
                                                 border: 'none',
-                                                color: viewMode === 'source' ? 'var(--text-primary)' : 'var(--text-secondary)'
+                                                color: viewMode === 'source' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                                                opacity: isEditMode ? 0.5 : 1,
+                                                cursor: isEditMode ? 'not-allowed' : 'pointer'
                                             }}
                                             title="源码"
                                         >
@@ -306,13 +383,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
                         )}
                         <button 
                             onClick={handleDownload} 
-                            className="glass-button primary"
+                            className="glass-button"
                             style={{ 
-                                padding: '6px 15px', 
-                                gap: 6
+                                padding: '8px', 
                             }}
+                            title="下载"
                         >
-                            <FaDownload /> {isMobile ? '' : '下载'}
+                            <FaDownload />
                         </button>
                     </div>
                 )}
@@ -324,15 +401,16 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
                 >
                     {getThemeIcon()}
                 </button>
-
-                <button 
-                    onClick={toggleAISidebar}
-                    className="glass-button"
-                    title="AI 助手"
-                >
-                    <FaRobot />
-                </button>
             </div>
+            
+            <button 
+                onClick={toggleAISidebar}
+                className="glass-button"
+                title="AI 助手"
+                style={{ marginLeft: '8px' }}
+            >
+                <FaRobot />
+            </button>
             
             {/* Mobile Menu Toggle */}
             {isMobile && selectedFile && (
@@ -350,7 +428,29 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
       {/* Content */}
       <div className="app-content-wrapper" style={{ position: 'relative', display: 'flex', flex: 1, overflow: 'hidden' }}>
         {/* Sidebar */}
-        <div className={`glass-panel app-sidebar ${isSidebarOpen ? 'open' : 'closed'}`}>
+        <div 
+            className={`glass-panel app-sidebar ${isSidebarOpen ? 'open' : 'closed'}`}
+            style={{ 
+                width: !isMobile && isSidebarOpen ? `${sidebarWidth}px` : undefined,
+                transition: isResizingLeft ? 'none' : undefined,
+                position: 'relative'
+            }}
+        >
+            {!isMobile && (
+                <div 
+                    style={{
+                        position: 'absolute',
+                        top: 0,
+                        right: 0,
+                        bottom: 0,
+                        width: '5px',
+                        cursor: 'col-resize',
+                        zIndex: 10,
+                        background: 'transparent'
+                    }}
+                    onMouseDown={startResizingLeft}
+                />
+            )}
             <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                 <FileList 
                     files={files}
@@ -411,10 +511,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
         {/* Desktop AI Sidebar */}
         {!isMobile && (
             <div style={{
-                width: isAIOpen ? '350px' : '0',
+                width: isAIOpen ? `${aiSidebarWidth}px` : '0',
                 marginLeft: isAIOpen ? '16px' : '0',
                 opacity: isAIOpen ? 1 : 0,
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                transition: isResizingRight ? 'none' : 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                 background: 'var(--bg-panel)',
                 border: '1px solid var(--border-glass)',
                 borderRadius: 'var(--radius-md)',
@@ -425,7 +525,23 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
                 flexShrink: 0,
                 display: 'flex',
                 flexDirection: 'column',
+                position: 'relative'
             }}>
+                 {isAIOpen && (
+                    <div 
+                        style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            bottom: 0,
+                            width: '5px',
+                            cursor: 'col-resize',
+                            zIndex: 10,
+                            background: 'transparent'
+                        }}
+                        onMouseDown={startResizingRight}
+                    />
+                 )}
                  <AISidebar 
                     currentFile={selectedFile ? { name: selectedFile.name, content: editedContent } : null}
                     onFileUpdate={(newContent) => {

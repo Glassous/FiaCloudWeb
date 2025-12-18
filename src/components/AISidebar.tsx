@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAI } from '../contexts/AIContext';
-import { FaPaperPlane, FaRobot, FaTimes, FaEdit, FaPlus, FaHistory, FaTrash, FaFile } from 'react-icons/fa';
+import { FaPaperPlane, FaRobot, FaTimes, FaEdit, FaPlus, FaHistory, FaTrash, FaFile, FaCheck } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -28,7 +28,11 @@ const AISidebar: React.FC<AISidebarProps> = ({ currentFile, onFileUpdate }) => {
         conversations,
         currentConversationId,
         selectConversation,
-        deleteConversation
+        deleteConversation,
+        pendingEditContent,
+        originalEditContent,
+        acceptEdit,
+        rejectEdit
     } = useAI();
     const [input, setInput] = useState('');
     const [showHistory, setShowHistory] = useState(false);
@@ -55,15 +59,31 @@ const AISidebar: React.FC<AISidebarProps> = ({ currentFile, onFileUpdate }) => {
         if (isEditMode && currentFile && onFileUpdate) {
             addMessage('user', msg);
             try {
-                const newContent = await generateEdit(msg, currentFile.content);
-                onFileUpdate(newContent);
-                addMessage('assistant', `Updated ${currentFile.name} based on your instructions.`);
+                await generateEdit(msg, currentFile.content, (newContent) => {
+                    onFileUpdate(newContent);
+                });
+                // We don't add assistant success message here immediately
+                // It will be handled after user accepts/rejects or we can add a prompt saying "Review changes"
+                // But since it's streaming, the user sees the file changing.
             } catch (e: any) {
                 addMessage('assistant', `Failed to edit file: ${e.message}`);
             }
         } else {
             await sendMessage(msg);
         }
+    };
+    
+    const handleAcceptEdit = () => {
+        acceptEdit();
+        addMessage('assistant', 'Changes accepted.');
+    };
+    
+    const handleRejectEdit = () => {
+        if (originalEditContent && onFileUpdate) {
+            onFileUpdate(originalEditContent);
+        }
+        rejectEdit();
+        addMessage('assistant', 'Changes rejected.');
     };
 
     const handleNewChat = () => {
@@ -147,11 +167,11 @@ const AISidebar: React.FC<AISidebarProps> = ({ currentFile, onFileUpdate }) => {
                     {messages.map((msg, idx) => (
                         <div key={idx} className={`message ${msg.role}`}>
                             <div className="message-content">
-                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content || ' '}</ReactMarkdown>
                             </div>
                         </div>
                     ))}
-                    {loading && (
+                    {loading && (!messages.length || messages[messages.length - 1].role !== 'assistant') && (
                         <div className="message assistant">
                             <div className="message-content">思考中...</div>
                         </div>
@@ -168,20 +188,45 @@ const AISidebar: React.FC<AISidebarProps> = ({ currentFile, onFileUpdate }) => {
                         {isEditMode && <span className="mode-badge">编辑中</span>}
                     </div>
                 )}
-                <form onSubmit={handleSubmit} className="ai-input-area">
-                    <input
-                        type="text"
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        placeholder={isEditMode ? "输入修改指令..." : "输入消息..."}
-                        className="glass-input"
-                        disabled={loading}
-                        style={{ flex: 1 }}
-                    />
-                    <button type="submit" className="glass-button primary" disabled={loading} style={{ padding: '0 12px' }}>
-                        <FaPaperPlane />
-                    </button>
-                </form>
+                
+                {pendingEditContent !== null ? (
+                    <div className="edit-actions">
+                        <div className="edit-prompt">
+                            Review changes for {currentFile?.name}
+                        </div>
+                        <div className="edit-buttons">
+                             <button 
+                                onClick={handleAcceptEdit} 
+                                className="glass-button success"
+                                title="接受修改"
+                            >
+                                <FaCheck /> 接受
+                            </button>
+                            <button 
+                                onClick={handleRejectEdit} 
+                                className="glass-button danger"
+                                title="拒绝修改"
+                            >
+                                <FaTimes /> 拒绝
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <form onSubmit={handleSubmit} className="ai-input-area">
+                        <input
+                            type="text"
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            placeholder={isEditMode ? "输入修改指令..." : "输入消息..."}
+                            className="glass-input"
+                            disabled={loading}
+                            style={{ flex: 1 }}
+                        />
+                        <button type="submit" className="glass-button primary" disabled={loading} style={{ padding: '0 12px' }}>
+                            <FaPaperPlane />
+                        </button>
+                    </form>
+                )}
             </div>
 
             <style>{`
@@ -341,6 +386,48 @@ const AISidebar: React.FC<AISidebarProps> = ({ currentFile, onFileUpdate }) => {
                     padding: 16px;
                     display: flex;
                     gap: 8px;
+                }
+
+                .edit-actions {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                    width: 100%;
+                    padding: 8px;
+                    background: rgba(var(--bg-secondary-rgb), 0.3);
+                    border-radius: 8px;
+                }
+                
+                .edit-prompt {
+                    font-size: 12px;
+                    color: var(--text-secondary);
+                    text-align: center;
+                }
+                
+                .edit-buttons {
+                    display: flex;
+                    gap: 8px;
+                    justify-content: center;
+                }
+                
+                .glass-button.success {
+                    background-color: rgba(76, 175, 80, 0.2);
+                    color: #4caf50;
+                    border: 1px solid rgba(76, 175, 80, 0.3);
+                }
+                
+                .glass-button.success:hover {
+                    background-color: rgba(76, 175, 80, 0.3);
+                }
+                
+                .glass-button.danger {
+                    background-color: rgba(244, 67, 54, 0.2);
+                    color: #f44336;
+                    border: 1px solid rgba(244, 67, 54, 0.3);
+                }
+                
+                .glass-button.danger:hover {
+                    background-color: rgba(244, 67, 54, 0.3);
                 }
             `}</style>
         </div>
