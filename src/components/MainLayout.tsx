@@ -31,7 +31,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   
   const { theme, cycleTheme } = useTheme();
-  const { showConfirm, showToast } = useUI();
+  const { showToast } = useUI();
   const { toggleSidebar: toggleAISidebar, isOpen: isAIOpen, isEditMode } = useAI();
 
   // Resizing Logic
