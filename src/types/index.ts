@@ -6,6 +6,16 @@ export interface OSSConfigData {
   endpoint: string;
 }
 
+export interface R2ConfigData {
+  accountId: string;
+  accessKeyId: string;
+  accessKeySecret: string;
+  bucket: string;
+  customDomain?: string;
+}
+
+export type StorageProvider = 'aliyun' | 'r2';
+
 export interface AIConfigData {
   baseUrl: string;
   apiKey: string;

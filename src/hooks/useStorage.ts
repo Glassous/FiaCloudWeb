@@ -1,53 +1,40 @@
 import { useState, useCallback } from 'react';
-import OSS from 'ali-oss';
-import type { OSSConfigData, OSSFile } from '../types';
+import type { StorageService } from '../services/StorageInterface';
+import { AliyunStorage } from '../services/AliyunStorage';
+import { R2Storage } from '../services/R2Storage';
+import type { OSSConfigData, R2ConfigData, OSSFile, StorageProvider } from '../types';
 import { useUI } from '../contexts/UIContext';
 
-export const useOSS = () => {
-  const [client, setClient] = useState<OSS | null>(null);
+export const useStorage = () => {
+  const [service, setService] = useState<StorageService | null>(null);
   const [files, setFiles] = useState<OSSFile[]>([]);
   const [loading, setLoading] = useState(false);
   const { showToast } = useUI();
 
-  const initClient = useCallback((config: OSSConfigData) => {
+  const initClient = useCallback((provider: StorageProvider, config: OSSConfigData | R2ConfigData) => {
     try {
-      const newClient = new OSS({
-        region: config.region,
-        accessKeyId: config.accessKeyId,
-        accessKeySecret: config.accessKeySecret,
-        bucket: config.bucket,
-        secure: true, // Use HTTPS
-      });
-      setClient(newClient);
-      return newClient;
+      let newService: StorageService;
+      if (provider === 'aliyun') {
+          newService = new AliyunStorage(config as OSSConfigData);
+      } else {
+          newService = new R2Storage(config as R2ConfigData);
+      }
+      setService(newService);
+      return newService;
     } catch (error) {
-      console.error('Failed to init OSS client:', error);
-      showToast('OSS初始化失败，请检查配置', 'error');
+      console.error('Failed to init storage client:', error);
+      showToast('存储服务初始化失败，请检查配置', 'error');
       return null;
     }
   }, [showToast]);
 
   const PLACEHOLDER_FILENAME = 'new.fiacloud';
 
-  const listFiles = useCallback(async (currentClient: OSS | null = client) => {
-    if (!currentClient) return;
+  const listFiles = useCallback(async (currentService: StorageService | null = service) => {
+    if (!currentService) return;
     setLoading(true);
     try {
-      const result = await currentClient.list({
-        'max-keys': 1000,
-      }, {});
-      
-      const fileList: OSSFile[] = (result.objects || []).map((obj: any) => ({
-        name: obj.name,
-        url: obj.url,
-        lastModified: obj.lastModified,
-        size: obj.size,
-        type: obj.name.split('.').pop()?.toLowerCase(),
-      }));
-      
-      // Sort by last modified desc
-      fileList.sort((a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime());
-      
+      const fileList = await currentService.list();
       setFiles(fileList);
     } catch (error) {
       console.error('List files error:', error);
@@ -55,29 +42,23 @@ export const useOSS = () => {
     } finally {
       setLoading(false);
     }
-  }, [client, showToast]);
+  }, [service, showToast]);
 
   const uploadFile = useCallback(async (file: File, folderPath?: string) => {
-    if (!client) return;
+    if (!service) return;
     setLoading(true);
     try {
-       // multipart upload for larger files, but simple put is fine for basic
        const fullPath = folderPath ? `${folderPath}/${file.name}` : file.name;
-       await client.put(fullPath, file);
+       await service.upload(file, fullPath);
 
-       // Check if there's a placeholder in the same folder, and delete it if exists
        const parts = fullPath.split('/');
        if (parts.length > 1) {
            const currentFolderPath = parts.slice(0, -1).join('/');
            const placeholderPath = `${currentFolderPath}/${PLACEHOLDER_FILENAME}`;
            try {
-               // We don't check if it exists to save a call, just try delete. 
-               // Or better, check the current 'files' state if we have it?
-               // But 'files' might be stale.
-               // Let's just try to delete it silently.
-               await client.delete(placeholderPath);
+               await service.delete(placeholderPath);
            } catch (e) {
-               // Ignore error if placeholder doesn't exist
+               // Ignore
            }
        }
 
@@ -89,36 +70,30 @@ export const useOSS = () => {
     } finally {
         setLoading(false);
     }
-  }, [client, listFiles, showToast]);
+  }, [service, listFiles, showToast]);
 
-  const getFileUrl = useCallback((fileName: string) => {
-      if (!client) return '';
-      return client.signatureUrl(fileName, { expires: 3600 }); // 1 hour expiration
-  }, [client]);
+  const getFileUrl = useCallback(async (fileName: string) => {
+      if (!service) return '';
+      return await service.getUrl(fileName);
+  }, [service]);
 
   const getFileContent = useCallback(async (fileName: string) => {
-      if (!client) return '';
+      if (!service) return '';
       try {
-          const result = await client.get(fileName);
-          if (result.content) {
-              return result.content.toString();
-          }
-          return '';
+          return await service.getContent(fileName);
       } catch (error) {
           console.error('Get content error:', error);
           showToast('获取文件内容失败', 'error');
           return '';
       }
-  }, [client, showToast]);
+  }, [service, showToast]);
 
   const saveFileContent = useCallback(async (fileName: string, content: string) => {
-    if (!client) return;
+    if (!service) return;
     setLoading(true);
     try {
-      const blob = new Blob([content], { type: 'text/plain' });
-      await client.put(fileName, blob);
+      await service.putContent(fileName, content);
       showToast('文件保存成功', 'success');
-      // Refresh list to update size/time if needed, though content is what matters
       await listFiles(); 
     } catch (error) {
       console.error('Save file content error:', error);
@@ -126,29 +101,24 @@ export const useOSS = () => {
     } finally {
       setLoading(false);
     }
-  }, [client, listFiles, showToast]);
+  }, [service, listFiles, showToast]);
 
   const deleteFile = useCallback(async (fileName: string) => {
-    if (!client) return;
+    if (!service) return;
     setLoading(true);
     try {
-      await client.delete(fileName);
+      await service.delete(fileName);
       
-      // Check if folder needs a placeholder
       const parts = fileName.split('/');
       if (parts.length > 1) {
           const folderPath = parts.slice(0, -1).join('/');
-          // List files in this folder to see if it's empty
-          const result = await client.list({
-              prefix: folderPath + '/',
-              'max-keys': 2 // We only need to know if there is at least 1 file
-          }, {});
-
-          if (!result.objects || result.objects.length === 0) {
-              // Folder is empty, create placeholder
+          // We need to check if folder is empty. 
+          // Our service.list(prefix) returns files.
+          const files = await service.list(folderPath + '/');
+          
+          if (files.length === 0) {
               const placeholderPath = `${folderPath}/${PLACEHOLDER_FILENAME}`;
-              const blob = new Blob([''], { type: 'application/octet-stream' });
-              await client.put(placeholderPath, blob);
+              await service.putContent(placeholderPath, new Blob([''], { type: 'application/octet-stream' }));
           }
       }
 
@@ -160,31 +130,19 @@ export const useOSS = () => {
     } finally {
       setLoading(false);
     }
-  }, [client, listFiles, showToast]);
+  }, [service, listFiles, showToast]);
 
   const deleteFolder = useCallback(async (folderPath: string) => {
-    if (!client) return;
+    if (!service) return;
     setLoading(true);
     try {
-        // Ensure folder path doesn't end with slash for consistency in logic, 
-        // but for prefix search we need it.
         const prefix = folderPath.endsWith('/') ? folderPath : `${folderPath}/`;
         
-        let result;
-        do {
-            // List all files in the folder (with pagination)
-            result = await client.list({
-                prefix: prefix,
-                'max-keys': 1000,
-                marker: result ? result.nextMarker : undefined
-            }, {});
-    
-            if (result.objects && result.objects.length > 0) {
-                const objectsToDelete = result.objects.map((obj: any) => obj.name);
-                // Batch delete
-                await client.deleteMulti(objectsToDelete, { quiet: true });
-            }
-        } while (result.nextMarker);
+        const files = await service.list(prefix);
+        if (files.length > 0) {
+            const keys = files.map(f => f.name);
+            await service.deleteMulti(keys);
+        }
 
         showToast(`文件夹删除成功`, 'success');
         await listFiles();
@@ -194,38 +152,34 @@ export const useOSS = () => {
     } finally {
         setLoading(false);
     }
-  }, [client, listFiles, showToast]);
+  }, [service, listFiles, showToast]);
 
 
   const renameFile = useCallback(async (oldName: string, newName: string) => {
-    if (!client) return;
+    if (!service) return;
     setLoading(true);
     try {
-      await client.copy(newName, oldName);
-      await client.delete(oldName);
+      await service.copy(oldName, newName);
+      await service.delete(oldName);
 
       // Handle placeholder logic for old folder
       const oldParts = oldName.split('/');
       if (oldParts.length > 1) {
           const folderPath = oldParts.slice(0, -1).join('/');
-          const result = await client.list({
-              prefix: folderPath + '/',
-              'max-keys': 2
-          }, {});
-          if (!result.objects || result.objects.length === 0) {
+          const files = await service.list(folderPath + '/');
+          if (files.length === 0) {
               const placeholderPath = `${folderPath}/${PLACEHOLDER_FILENAME}`;
-              const blob = new Blob([''], { type: 'application/octet-stream' });
-              await client.put(placeholderPath, blob);
+              await service.putContent(placeholderPath, new Blob([''], { type: 'application/octet-stream' }));
           }
       }
 
-      // Handle placeholder logic for new folder (remove placeholder if exists)
+      // Handle placeholder logic for new folder
       const newParts = newName.split('/');
       if (newParts.length > 1) {
            const folderPath = newParts.slice(0, -1).join('/');
            const placeholderPath = `${folderPath}/${PLACEHOLDER_FILENAME}`;
            try {
-               await client.delete(placeholderPath);
+               await service.delete(placeholderPath);
            } catch (e) {
                // ignore
            }
@@ -239,24 +193,21 @@ export const useOSS = () => {
     } finally {
       setLoading(false);
     }
-  }, [client, listFiles, showToast]);
+  }, [service, listFiles, showToast]);
 
   const createFolder = useCallback(async (folderName: string, parentPath?: string) => {
-      if (!client) return;
+      if (!service) return;
       setLoading(true);
       try {
-          // Normalize folder name (remove leading/trailing slashes)
           const cleanName = folderName.replace(/^\/+|\/+$/g, '');
           const fullPath = parentPath ? `${parentPath}/${cleanName}` : cleanName;
           const placeholderPath = `${fullPath}/${PLACEHOLDER_FILENAME}`;
-          const blob = new Blob([''], { type: 'application/octet-stream' });
-          await client.put(placeholderPath, blob);
+          await service.putContent(placeholderPath, new Blob([''], { type: 'application/octet-stream' }));
 
-          // If created in a parent folder, remove parent's placeholder if it was empty
           if (parentPath) {
              const parentPlaceholder = `${parentPath}/${PLACEHOLDER_FILENAME}`;
              try {
-                 await client.delete(parentPlaceholder);
+                 await service.delete(parentPlaceholder);
              } catch (e) {
                  // ignore
              }
@@ -270,24 +221,21 @@ export const useOSS = () => {
       } finally {
           setLoading(false);
       }
-  }, [client, listFiles, showToast]);
+  }, [service, listFiles, showToast]);
 
   const createTextFile = useCallback(async (fileName: string, parentPath?: string, content: string = '') => {
-      if (!client) return;
+      if (!service) return;
       setLoading(true);
       try {
-          const blob = new Blob([content], { type: 'text/plain' });
           const fullPath = parentPath ? `${parentPath}/${fileName}` : fileName;
-          
-          await client.put(fullPath, blob);
+          await service.putContent(fullPath, content);
 
-           // Check if there's a placeholder in the same folder, and delete it if exists
             const parts = fullPath.split('/');
             if (parts.length > 1) {
                 const folderPath = parts.slice(0, -1).join('/');
                 const placeholderPath = `${folderPath}/${PLACEHOLDER_FILENAME}`;
                 try {
-                    await client.delete(placeholderPath);
+                    await service.delete(placeholderPath);
                 } catch (e) {
                     // Ignore error
                 }
@@ -301,10 +249,10 @@ export const useOSS = () => {
       } finally {
           setLoading(false);
       }
-  }, [client, listFiles, showToast]);
+  }, [service, listFiles, showToast]);
 
   return {
-    client,
+    service,
     files,
     loading,
     initClient,

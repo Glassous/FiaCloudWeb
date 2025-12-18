@@ -4,12 +4,12 @@ import OSSConfig from './OSSConfig';
 import FileList from './FileList';
 import FilePreview from './FilePreview';
 import AISidebar from './AISidebar';
-import { useOSS } from '../hooks/useOSS';
+import { useStorage } from '../hooks/useStorage';
 import { decrypt } from '../utils/crypto';
 import { useTheme } from '../contexts/ThemeContext';
 import { useUI } from '../contexts/UIContext';
 import { useAI } from '../contexts/AIContext';
-import type { OSSFile, OSSConfigData } from '../types';
+import type { OSSFile, OSSConfigData, R2ConfigData, StorageProvider } from '../types';
 
 interface MainLayoutProps {
   onLogout: () => void;
@@ -128,38 +128,60 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
     renameFile,
     createFolder,
     createTextFile
-  } = useOSS();
+  } = useStorage();
 
   useEffect(() => {
     checkConfig();
   }, []);
 
   const checkConfig = () => {
-    const savedConfig = localStorage.getItem('fiacloud_oss_config');
-    if (savedConfig) {
-      try {
-        const decrypted = decrypt(savedConfig);
-        const config: OSSConfigData = JSON.parse(decrypted);
-        const ossClient = initClient(config);
-        if (ossClient) {
-          setIsConfigured(true);
-          setTimeout(() => listFiles(ossClient), 100); 
+    const activeProvider = (localStorage.getItem('fiacloud_active_provider') as StorageProvider) || 'aliyun';
+    
+    if (activeProvider === 'aliyun') {
+      const savedConfig = localStorage.getItem('fiacloud_oss_config');
+      if (savedConfig) {
+        try {
+          const decrypted = decrypt(savedConfig);
+          const config: OSSConfigData = JSON.parse(decrypted);
+          const service = initClient('aliyun', config);
+          if (service) {
+            setIsConfigured(true);
+            setTimeout(() => listFiles(service), 100); 
+          }
+        } catch (error) {
+          console.error('Aliyun Config load failed', error);
+          setIsConfigured(false);
         }
-      } catch (error) {
-        console.error('Config load failed', error);
+      } else {
         setIsConfigured(false);
       }
-    } else {
-      setIsConfigured(false);
+    } else if (activeProvider === 'r2') {
+      const savedConfig = localStorage.getItem('fiacloud_r2_config');
+      if (savedConfig) {
+        try {
+          const decrypted = decrypt(savedConfig);
+          const config: R2ConfigData = JSON.parse(decrypted);
+          const service = initClient('r2', config);
+          if (service) {
+            setIsConfigured(true);
+            setTimeout(() => listFiles(service), 100); 
+          }
+        } catch (error) {
+          console.error('R2 Config load failed', error);
+          setIsConfigured(false);
+        }
+      } else {
+        setIsConfigured(false);
+      }
     }
   };
 
-  const handleConfigSaved = (config: OSSConfigData) => {
-    const ossClient = initClient(config);
-    if (ossClient) {
+  const handleConfigSaved = (provider: StorageProvider, config: OSSConfigData | R2ConfigData) => {
+    const service = initClient(provider, config);
+    if (service) {
       setIsConfigured(true);
       setShowConfigModal(false);
-      listFiles(ossClient);
+      listFiles(service);
     }
   };
 
@@ -183,7 +205,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
                    file.name.toLowerCase().endsWith('.webp');
 
       if (isImg) {
-          const url = getFileUrl(file.name);
+          const url = await getFileUrl(file.name);
           setPreviewUrl(url);
       }
       
@@ -210,7 +232,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
     // Refresh the preview URL to ensure the latest image is shown
     // Note: Browser caching might still show old image, adding timestamp might help but signatureUrl usually changes
     if (selectedFile) {
-      const url = getFileUrl(selectedFile.name);
+      const url = await getFileUrl(selectedFile.name);
       setPreviewUrl(url);
     }
   };
@@ -227,9 +249,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
     setFileContent(editedContent);
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!selectedFile) return;
-    const url = getFileUrl(selectedFile.name);
+    const url = await getFileUrl(selectedFile.name);
     if (url) {
       window.open(url);
     } else {
@@ -300,7 +322,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
              </button>
           </div>
           <div className="glass-panel" style={{ width: '600px', padding: '24px' }}>
-              <h3 style={{ margin: '0 0 24px 0', textAlign: 'center' }}>OSS 配置</h3>
+              <h3 style={{ margin: '0 0 24px 0', textAlign: 'center' }}>存储配置</h3>
               <OSSConfig onConfigSaved={handleConfigSaved} />
           </div>
       </div>
