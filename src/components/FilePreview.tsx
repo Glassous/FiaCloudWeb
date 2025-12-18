@@ -6,6 +6,8 @@ import rehypeKatex from 'rehype-katex';
 import Papa from 'papaparse';
 import 'katex/dist/katex.min.css';
 import type { OSSFile } from '../types';
+import DiffViewer from './DiffViewer';
+import { useAI } from '../contexts/AIContext';
 
 interface FilePreviewProps {
   file: OSSFile | null;
@@ -24,6 +26,8 @@ const FilePreview: React.FC<FilePreviewProps> = ({
   viewMode = 'preview',
   onContentChange
 }) => {
+  const { isEditMode, originalEditContent, setOriginalEditContent } = useAI();
+
   if (!file) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: 'var(--text-secondary)', flexDirection: 'column' }}>
@@ -48,6 +52,8 @@ const FilePreview: React.FC<FilePreviewProps> = ({
     }
   }, [isCSV, content]);
 
+  const showDiff = isEditMode && originalEditContent !== null && isTextFile;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ flex: 1, overflow: 'auto', backgroundColor: 'transparent' }}>
@@ -55,7 +61,15 @@ const FilePreview: React.FC<FilePreviewProps> = ({
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: 'var(--text-secondary)' }}>
             加载中...
           </div>
-        ) : (
+        ) : showDiff ? (
+             <DiffViewer 
+                 original={originalEditContent || ''} 
+                 modified={content} 
+                 onApplyChange={(newContent) => onContentChange && onContentChange(newContent)}
+                 onOriginalUpdate={(newContent) => setOriginalEditContent(newContent)}
+                 isStreaming={loading}
+             />
+         ) : (
           isTextFile ? (
             viewMode === 'source' ? (
                 <textarea 

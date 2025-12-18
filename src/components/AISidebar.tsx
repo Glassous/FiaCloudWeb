@@ -23,6 +23,7 @@ const AISidebar: React.FC<AISidebarProps> = ({ currentFile, onFileUpdate }) => {
         toggleEditMode, 
         generateEdit, 
         addMessage, 
+        addMessages,
         addContextFile, 
         startNewConversation,
         conversations,
@@ -57,16 +58,18 @@ const AISidebar: React.FC<AISidebarProps> = ({ currentFile, onFileUpdate }) => {
         setInput('');
 
         if (isEditMode && currentFile && onFileUpdate) {
-            addMessage('user', msg);
+            const convId = addMessages([
+                { role: 'user', content: msg },
+                { role: 'assistant', content: 'Starting edit...', type: 'edit-card' }
+            ]);
+            
             try {
                 await generateEdit(msg, currentFile.content, (newContent) => {
                     onFileUpdate(newContent);
                 });
-                // We don't add assistant success message here immediately
-                // It will be handled after user accepts/rejects or we can add a prompt saying "Review changes"
-                // But since it's streaming, the user sees the file changing.
             } catch (e: any) {
-                addMessage('assistant', `Failed to edit file: ${e.message}`);
+                // If error, we might want to update the last message or add a new one
+                addMessage('assistant', `Failed to edit file: ${e.message}`, 'text', convId);
             }
         } else {
             await sendMessage(msg);
@@ -166,9 +169,31 @@ const AISidebar: React.FC<AISidebarProps> = ({ currentFile, onFileUpdate }) => {
                     )}
                     {messages.map((msg, idx) => (
                         <div key={idx} className={`message ${msg.role}`}>
-                            <div className="message-content">
-                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content || ' '}</ReactMarkdown>
-                            </div>
+                            {msg.type === 'edit-card' ? (
+                                <div className="edit-card-bubble">
+                                    <div className="edit-card-header">
+                                        <FaEdit /> AI Editing
+                                    </div>
+                                    <div className="edit-card-content">
+                                        Applying changes to {currentFile?.name}...
+                                    </div>
+                                    {/* Duplicate controls here if needed, or just status */}
+                                    {pendingEditContent !== null && idx === messages.length - 1 && (
+                                         <div className="edit-card-actions">
+                                             <button onClick={handleAcceptEdit} className="glass-button success small">
+                                                 <FaCheck /> Accept All
+                                             </button>
+                                             <button onClick={handleRejectEdit} className="glass-button danger small">
+                                                 <FaTimes /> Reject All
+                                             </button>
+                                         </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="message-content">
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content || ' '}</ReactMarkdown>
+                                </div>
+                            )}
                         </div>
                     ))}
                     {loading && (!messages.length || messages[messages.length - 1].role !== 'assistant') && (
@@ -353,6 +378,42 @@ const AISidebar: React.FC<AISidebarProps> = ({ currentFile, onFileUpdate }) => {
                 .message.assistant .message-content {
                     background: var(--bg-secondary);
                     border: 1px solid var(--border-subtle);
+                }
+
+                .edit-card-bubble {
+                    background: rgba(var(--bg-secondary-rgb), 0.5);
+                    border: 1px solid var(--border-glass);
+                    border-radius: 12px;
+                    padding: 12px;
+                    width: 100%;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                }
+                
+                .edit-card-header {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    font-weight: 600;
+                    color: var(--primary-color);
+                    font-size: 13px;
+                }
+                
+                .edit-card-content {
+                    font-size: 13px;
+                    color: var(--text-secondary);
+                }
+                
+                .edit-card-actions {
+                    display: flex;
+                    gap: 8px;
+                    margin-top: 4px;
+                }
+                
+                .glass-button.small {
+                    padding: 4px 8px;
+                    font-size: 12px;
                 }
 
                 .ai-input-wrapper {

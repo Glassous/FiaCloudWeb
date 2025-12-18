@@ -1,12 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import type { AIConfigData } from '../types';
+import type { AIConfigData, Message } from '../types';
 import { decrypt } from '../utils/crypto';
-
-interface Message {
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-}
 
 interface Conversation {
   id: string;
@@ -27,14 +22,15 @@ interface AIContextType {
   addContextFile: (filename: string, content: string) => void;
   isEditMode: boolean;
   toggleEditMode: () => void;
-  generateEdit: (instruction: string, fileContent: string) => Promise<string>;
   loading: boolean;
   startNewConversation: () => void;
   selectConversation: (id: string) => void;
   deleteConversation: (id: string) => void;
-  addMessage: (role: 'user' | 'assistant' | 'system', content: string) => void;
+  addMessage: (role: 'user' | 'assistant' | 'system', content: string, type?: 'text' | 'edit-card', conversationId?: string) => string;
+  addMessages: (messages: Message[], conversationId?: string) => string;
   pendingEditContent: string | null;
   originalEditContent: string | null;
+  setOriginalEditContent: (content: string | null) => void;
   setPendingEditContent: (content: string | null) => void;
   acceptEdit: () => void;
   rejectEdit: () => void;
@@ -121,14 +117,7 @@ export const AIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   };
 
   const startNewConversation = () => {
-      const newConv: Conversation = {
-          id: Date.now().toString(),
-          title: '新对话',
-          messages: [],
-          createdAt: Date.now()
-      };
-      updateConversationsState(prev => [newConv, ...prev]);
-      setCurrentConversationId(newConv.id);
+      setCurrentConversationId(null);
       setIsEditMode(false);
   };
 
@@ -598,16 +587,53 @@ Please use the 'update_file' tool to provide the new file content.`;
       });
   };
   
-  const addMessage = (role: 'user' | 'assistant' | 'system', content: string) => {
-    updateConversationsState(prev => prev.map(c => {
-        if (c.id === currentConversationId) {
-            return {
-                ...c,
-                messages: [...c.messages, { role, content } as Message]
-            };
-        }
-        return c;
-    }));
+  const addMessage = (role: 'user' | 'assistant' | 'system', content: string, type: 'text' | 'edit-card' = 'text', conversationId?: string) => {
+    const targetId = conversationId || currentConversationId;
+    if (!targetId) {
+        // If no conversation exists, create one
+        const newId = Date.now().toString();
+        const newConv: Conversation = {
+            id: newId,
+            title: content.slice(0, 20),
+            messages: [{ role, content, type }],
+            createdAt: Date.now()
+        };
+        updateConversationsState(prev => [newConv, ...prev]);
+        setCurrentConversationId(newId);
+        return newId;
+    } else {
+        updateConversationsState(prev => prev.map(c => {
+          if (c.id === targetId) {
+            return { ...c, messages: [...c.messages, { role, content, type }] };
+          }
+          return c;
+        }));
+        return targetId;
+    }
+  };
+
+  const addMessages = (newMessages: Message[], conversationId?: string) => {
+    const targetId = conversationId || currentConversationId;
+    if (!targetId) {
+        const newId = Date.now().toString();
+        const newConv: Conversation = {
+            id: newId,
+            title: newMessages[0]?.content.slice(0, 20) || '新对话',
+            messages: newMessages,
+            createdAt: Date.now()
+        };
+        updateConversationsState(prev => [newConv, ...prev]);
+        setCurrentConversationId(newId);
+        return newId;
+    } else {
+        updateConversationsState(prev => prev.map(c => {
+            if (c.id === targetId) {
+                return { ...c, messages: [...c.messages, ...newMessages] };
+            }
+            return c;
+        }));
+        return targetId;
+    }
   };
 
   return (
@@ -629,8 +655,10 @@ Please use the 'update_file' tool to provide the new file content.`;
       selectConversation,
       deleteConversation,
       addMessage,
+      addMessages,
       pendingEditContent,
       originalEditContent,
+      setOriginalEditContent,
       setPendingEditContent,
       acceptEdit,
       rejectEdit

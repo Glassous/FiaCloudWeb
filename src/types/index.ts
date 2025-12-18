@@ -19,3 +19,9 @@ export interface OSSFile {
   size: number;
   type?: string;
 }
+
+export interface Message {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  type?: 'text' | 'edit-card'; // Add message type
+}
