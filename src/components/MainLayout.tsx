@@ -45,6 +45,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
     getFileUrl, 
     getFileContent,
     deleteFile,
+    deleteFolder,
     renameFile,
     createFolder,
     createTextFile
@@ -206,6 +207,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
                     onUpload={handleUpload}
                     onRefresh={() => listFiles()}
                     onDelete={deleteFile}
+                    onDeleteFolder={deleteFolder}
                     onRename={renameFile}
                     onCreateFolder={handleCreateFolder}
                     onCreateFile={handleCreateFile}

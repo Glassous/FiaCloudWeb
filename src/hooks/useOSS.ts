@@ -145,6 +145,41 @@ export const useOSS = () => {
     }
   }, [client, listFiles, showToast]);
 
+  const deleteFolder = useCallback(async (folderPath: string) => {
+    if (!client) return;
+    setLoading(true);
+    try {
+        // Ensure folder path doesn't end with slash for consistency in logic, 
+        // but for prefix search we need it.
+        const prefix = folderPath.endsWith('/') ? folderPath : `${folderPath}/`;
+        
+        let result;
+        do {
+            // List all files in the folder (with pagination)
+            result = await client.list({
+                prefix: prefix,
+                'max-keys': 1000,
+                marker: result ? result.nextMarker : undefined
+            }, {});
+    
+            if (result.objects && result.objects.length > 0) {
+                const objectsToDelete = result.objects.map((obj: any) => obj.name);
+                // Batch delete
+                await client.deleteMulti(objectsToDelete, { quiet: true });
+            }
+        } while (result.nextMarker);
+
+        showToast(`文件夹删除成功`, 'success');
+        await listFiles();
+    } catch (error) {
+        console.error('Delete folder error:', error);
+        showToast(`文件夹删除失败`, 'error');
+    } finally {
+        setLoading(false);
+    }
+  }, [client, listFiles, showToast]);
+
+
   const renameFile = useCallback(async (oldName: string, newName: string) => {
     if (!client) return;
     setLoading(true);
@@ -261,6 +296,7 @@ export const useOSS = () => {
     getFileUrl,
     getFileContent,
     deleteFile,
+    deleteFolder,
     renameFile,
     createFolder,
     createTextFile

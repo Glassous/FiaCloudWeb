@@ -32,6 +32,7 @@ interface FileListProps {
   onUpload: (file: File, folderPath?: string) => void;
   onRefresh: () => void;
   onDelete: (fileName: string) => void;
+  onDeleteFolder: (folderPath: string) => void;
   onRename: (oldName: string, newName: string) => void;
   onCreateFolder: (folderName: string, parentPath?: string) => void;
   onCreateFile: (fileName: string, parentPath?: string) => void;
@@ -45,6 +46,7 @@ const FileList: React.FC<FileListProps> = ({
   onUpload, 
   onRefresh,
   onDelete,
+  onDeleteFolder,
   onRename,
   onCreateFolder,
   onCreateFile,
@@ -208,11 +210,26 @@ const FileList: React.FC<FileListProps> = ({
   };
 
   const handleDeleteConfirm = (key: string, title: string) => {
+      // Check if it's a folder by checking if any file starts with key + '/'
+      // or if the key itself doesn't contain '.' (heuristic, but checking files is safer)
+      // Actually, tree structure logic is: if it's not a leaf, it's a folder.
+      // But we don't have easy access to the node here.
+      // Checking files list:
+      const isFolder = files.some(f => f.name.startsWith(key + '/'));
+      
       showConfirm({
-          title: '删除确认',
-          message: `确定要删除 "${title}" 吗？此操作无法撤销。`,
+          title: isFolder ? '删除文件夹' : '删除文件',
+          message: isFolder 
+            ? `确定要删除文件夹 "${title}" 及其所有内容吗？此操作无法撤销。`
+            : `确定要删除 "${title}" 吗？此操作无法撤销。`,
           type: 'danger',
-          onConfirm: () => onDelete(key)
+          onConfirm: () => {
+              if (isFolder) {
+                  onDeleteFolder(key);
+              } else {
+                  onDelete(key);
+              }
+          }
       });
   };
 
