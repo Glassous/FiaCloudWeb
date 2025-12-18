@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import Papa from 'papaparse';
 import 'katex/dist/katex.min.css';
 import type { OSSFile } from '../types';
 
@@ -32,8 +33,20 @@ const FilePreview: React.FC<FilePreviewProps> = ({
     );
   }
 
-  const isTextFile = file.name.endsWith('.txt') || file.name.endsWith('.md') || file.name.endsWith('.json') || file.name.endsWith('.js') || file.name.endsWith('.ts');
+  const isTextFile = file.name.endsWith('.txt') || file.name.endsWith('.md') || file.name.endsWith('.json') || file.name.endsWith('.js') || file.name.endsWith('.ts') || file.name.endsWith('.csv');
   const isMarkdown = file.name.endsWith('.md');
+  const isCSV = file.name.endsWith('.csv');
+
+  const csvData = useMemo(() => {
+    if (!isCSV || !content) return [];
+    try {
+        const result = Papa.parse(content, { header: false });
+        return result.data as string[][];
+    } catch (e) {
+        console.error('CSV parse error:', e);
+        return [];
+    }
+  }, [isCSV, content]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -75,8 +88,27 @@ const FilePreview: React.FC<FilePreviewProps> = ({
                         {content}
                     </ReactMarkdown>
                 </div>
-            ) : (
+            ) : isCSV ? (
                 <div style={{ 
+                    padding: '24px', 
+                    fontSize: `${fontSize}px`,
+                    color: 'var(--text-primary)',
+                    overflow: 'auto'
+                }}>
+                    <table className="csv-table">
+                        <tbody>
+                            {csvData.map((row, rowIndex) => (
+                                <tr key={rowIndex}>
+                                    {row.map((cell, cellIndex) => (
+                                        <td key={cellIndex}>{cell}</td>
+                                    ))}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            ) : (
+                <div style={{  
                     padding: '24px', 
                     minHeight: '100%', 
                     fontSize: `${fontSize}px`,

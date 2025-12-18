@@ -371,3 +371,27 @@ body {
 .markdown-preview table th, .markdown-preview table td { padding: 6px 13px; border: 1px solid var(--border-subtle); }
 .markdown-preview table tr { background-color: transparent; border-top: 1px solid var(--border-subtle); }
 .markdown-preview img { max-width: 100%; box-sizing: content-box; background-color: var(--bg-app); }
+
+/* CSV Table Styles */
+.csv-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 0.9em;
+}
+
+.csv-table td {
+  border: 1px solid var(--border-subtle);
+  padding: 8px 12px;
+  text-align: left;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.csv-table tr:nth-child(even) {
+  background-color: var(--bg-hover);
+}
+
+.csv-table tr:hover {
+  background-color: var(--bg-hover);
+}

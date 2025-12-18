@@ -104,12 +104,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
       setFileContent('');
       setFontSize(14); // Reset font size
       
-      if (file.name.endsWith('.txt') || file.name.endsWith('.md') || file.name.endsWith('.json') || file.name.endsWith('.js') || file.name.endsWith('.ts')) {
+      if (file.name.endsWith('.txt') || file.name.endsWith('.md') || file.name.endsWith('.json') || file.name.endsWith('.js') || file.name.endsWith('.ts') || file.name.endsWith('.csv')) {
         setContentLoading(true);
         const content = await getFileContent(file.name);
         setFileContent(content);
         setEditedContent(content);
-        if (file.name.endsWith('.md')) {
+        if (file.name.endsWith('.md') || file.name.endsWith('.csv')) {
             setViewMode('preview');
         } else {
             setViewMode('source');
@@ -176,7 +176,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
       selectedFile.name.endsWith('.md') || 
       selectedFile.name.endsWith('.json') || 
       selectedFile.name.endsWith('.js') || 
-      selectedFile.name.endsWith('.ts')
+      selectedFile.name.endsWith('.ts') ||
+      selectedFile.name.endsWith('.csv')
   );
 
   if (!isConfigured) {
@@ -231,7 +232,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
                     <div style={{ display: 'flex', gap: 8 }}>
                         {isTextFile && (
                             <>
-                                {selectedFile.name.endsWith('.md') && (
+                                {(selectedFile.name.endsWith('.md') || selectedFile.name.endsWith('.csv')) && (
                                     <div style={{ display: 'flex', backgroundColor: 'rgba(128,128,128,0.1)', borderRadius: '6px', padding: '2px', marginRight: '8px' }}>
                                         <button
                                             onClick={() => setViewMode('preview')}
