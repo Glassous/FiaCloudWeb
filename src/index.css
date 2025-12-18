@@ -342,7 +342,14 @@ body {
       max-width: 300px;
   }
   .header-controls-wrapper {
-      max-width: 400px;
+      max-width: 100%;
+      overflow-x: auto;
+      padding-right: 8px; /* Add some padding for scrollbar/touch */
+  }
+  
+  /* Hide scrollbar for cleaner look */
+  .header-controls-wrapper::-webkit-scrollbar {
+    display: none;
   }
 }
 

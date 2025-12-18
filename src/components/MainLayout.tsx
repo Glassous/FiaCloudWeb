@@ -328,6 +328,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
                 <FaBars />
             </button>
 
+            {!isMobile && (
             <div style={{ width: '32px', height: '32px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <svg width="100%" height="100%" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M16 12C16 7.58172 19.5817 4 24 4H36C44.8366 4 52 11.1634 52 20C52 28.8366 44.8366 36 36 36H24V20C24 17.7909 22.2091 16 20 16H16Z" stroke="currentColor" strokeWidth="4"/>
@@ -335,6 +336,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
                     <circle cx="44" cy="42" r="12" stroke="currentColor" strokeWidth="4" />
                 </svg>
             </div>
+            )}
             
             {/* Dynamic Title - Hides when mobile menu is open */}
             <div className={`header-title-wrapper ${isMobile && showMobileMenu ? 'hidden' : ''}`} style={{ 
@@ -343,141 +345,147 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
                 flexShrink: 1, 
                 textOverflow: 'ellipsis'
             }}>
-                {selectedFile ? selectedFile.name : 'FiaCloud'}
+                {selectedFile ? selectedFile.name.split('/').pop() : 'FiaCloud'}
             </div>
             
             <div style={{ flex: 1 }} />
 
             {/* Controls Group */}
             <div className={`header-controls-wrapper ${isMobile && !showMobileMenu ? 'hidden' : ''}`}>
-                {selectedFile && (
-                    <div style={{ display: 'flex', gap: 8 }}>
-                        {isTextFile && (
-                            <>
-                                {(selectedFile.name.endsWith('.md') || selectedFile.name.endsWith('.csv') || selectedFile.name.endsWith('.json')) && (
-                                    <div style={{ display: 'flex', backgroundColor: 'rgba(128,128,128,0.1)', borderRadius: '6px', padding: '2px', marginRight: '8px' }}>
-                                        <button
-                                            onClick={() => setViewMode('preview')}
-                                            disabled={isEditMode}
+                <div style={{ display: 'flex', gap: 8 }}>
+                    {selectedFile && (
+                        <>
+                            {isTextFile && (
+                                <>
+                                    {(selectedFile.name.endsWith('.md') || selectedFile.name.endsWith('.csv') || selectedFile.name.endsWith('.json')) && (
+                                        <div style={{ display: 'flex', backgroundColor: 'rgba(128,128,128,0.1)', borderRadius: '6px', padding: '2px', marginRight: '8px' }}>
+                                            <button
+                                                onClick={() => setViewMode('preview')}
+                                                disabled={isEditMode}
+                                                className="glass-button"
+                                                style={{ 
+                                                    padding: '6px 10px', 
+                                                    borderRadius: '4px',
+                                                    backgroundColor: viewMode === 'preview' ? 'var(--bg-primary)' : 'transparent',
+                                                    boxShadow: viewMode === 'preview' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                                                    border: 'none',
+                                                    color: viewMode === 'preview' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                                                    opacity: isEditMode ? 0.5 : 1,
+                                                    cursor: isEditMode ? 'not-allowed' : 'pointer'
+                                                }}
+                                                title={isEditMode ? "AI编辑模式下禁用预览" : "预览"}
+                                            >
+                                                <FaEye />
+                                            </button>
+                                            <button
+                                                onClick={() => setViewMode('source')}
+                                                disabled={isEditMode}
+                                                className="glass-button"
+                                                style={{ 
+                                                    padding: '6px 10px', 
+                                                    borderRadius: '4px',
+                                                    backgroundColor: viewMode === 'source' ? 'var(--bg-primary)' : 'transparent',
+                                                    boxShadow: viewMode === 'source' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                                                    border: 'none',
+                                                    color: viewMode === 'source' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                                                    opacity: isEditMode ? 0.5 : 1,
+                                                    cursor: isEditMode ? 'not-allowed' : 'pointer'
+                                                }}
+                                                title="源码"
+                                            >
+                                                <FaCode />
+                                            </button>
+                                        </div>
+                                    )}
+                                    
+                                    {viewMode === 'source' && (
+                                         <button 
+                                            onClick={handleSave} 
+                                            title={fileContent !== editedContent ? "保存 (未保存)" : "保存 (已保存)"}
                                             className="glass-button"
                                             style={{ 
                                                 padding: '6px 10px', 
-                                                borderRadius: '4px',
-                                                backgroundColor: viewMode === 'preview' ? 'var(--bg-primary)' : 'transparent',
-                                                boxShadow: viewMode === 'preview' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                                                border: 'none',
-                                                color: viewMode === 'preview' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                                                opacity: isEditMode ? 0.5 : 1,
-                                                cursor: isEditMode ? 'not-allowed' : 'pointer'
+                                                marginRight: '8px', 
+                                                color: fileContent !== editedContent ? '#4caf50' : 'var(--text-secondary)',
+                                                borderColor: fileContent !== editedContent ? '#4caf50' : 'var(--border-subtle)'
                                             }}
-                                            title={isEditMode ? "AI编辑模式下禁用预览" : "预览"}
                                         >
-                                            <FaEye />
+                                            <FaSave />
                                         </button>
-                                        <button
-                                            onClick={() => setViewMode('source')}
-                                            disabled={isEditMode}
-                                            className="glass-button"
-                                            style={{ 
-                                                padding: '6px 10px', 
-                                                borderRadius: '4px',
-                                                backgroundColor: viewMode === 'source' ? 'var(--bg-primary)' : 'transparent',
-                                                boxShadow: viewMode === 'source' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                                                border: 'none',
-                                                color: viewMode === 'source' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                                                opacity: isEditMode ? 0.5 : 1,
-                                                cursor: isEditMode ? 'not-allowed' : 'pointer'
-                                            }}
-                                            title="源码"
-                                        >
-                                            <FaCode />
-                                        </button>
-                                    </div>
-                                )}
-                                
-                                {viewMode === 'source' && (
-                                     <button 
-                                        onClick={handleSave} 
-                                        title={fileContent !== editedContent ? "保存 (未保存)" : "保存 (已保存)"}
+                                    )}
+
+                                    {!isMobile && (
+                                    <>
+                                    <button 
+                                        onClick={() => setFontSize(s => Math.min(s + 2, 32))} 
+                                        title="放大" 
                                         className="glass-button"
-                                        style={{ 
-                                            padding: '6px 10px', 
-                                            marginRight: '8px', 
-                                            color: fileContent !== editedContent ? '#4caf50' : 'var(--text-secondary)',
-                                            borderColor: fileContent !== editedContent ? '#4caf50' : 'var(--border-subtle)'
-                                        }}
+                                        style={{ padding: '6px 10px' }}
                                     >
-                                        <FaSave />
+                                        <FaSearchPlus />
                                     </button>
-                                )}
+                                    <button 
+                                        onClick={() => setFontSize(s => Math.max(s - 2, 10))} 
+                                        title="缩小" 
+                                        className="glass-button"
+                                        style={{ padding: '6px 10px' }}
+                                    >
+                                        <FaSearchMinus />
+                                    </button>
+                                    </>
+                                    )}
+                                </>
+                            )}
 
-                                <button 
-                                    onClick={() => setFontSize(s => Math.min(s + 2, 32))} 
-                                    title="放大" 
+                            {isImageFile && (
+                                <button
+                                    onClick={() => setShowExif(!showExif)}
                                     className="glass-button"
-                                    style={{ padding: '6px 10px' }}
+                                    style={{
+                                        padding: '6px 10px',
+                                        backgroundColor: showExif ? 'var(--bg-primary)' : 'transparent',
+                                        color: showExif ? 'var(--text-primary)' : 'var(--text-secondary)'
+                                    }}
+                                    title={showExif ? "隐藏 EXIF" : "显示 EXIF"}
                                 >
-                                    <FaSearchPlus />
+                                    <FaCamera />
                                 </button>
-                                <button 
-                                    onClick={() => setFontSize(s => Math.max(s - 2, 10))} 
-                                    title="缩小" 
-                                    className="glass-button"
-                                    style={{ padding: '6px 10px' }}
-                                >
-                                    <FaSearchMinus />
-                                </button>
-                            </>
-                        )}
+                            )}
 
-                        {isImageFile && (
-                            <button
-                                onClick={() => setShowExif(!showExif)}
+                            <button 
+                                onClick={handleDownload} 
                                 className="glass-button"
-                                style={{
-                                    padding: '6px 10px',
-                                    backgroundColor: showExif ? 'var(--bg-primary)' : 'transparent',
-                                    color: showExif ? 'var(--text-primary)' : 'var(--text-secondary)'
+                                style={{ 
+                                    padding: '8px', 
                                 }}
-                                title={showExif ? "隐藏 EXIF" : "显示 EXIF"}
+                                title="下载"
                             >
-                                <FaCamera />
+                                <FaDownload />
                             </button>
-                        )}
-
-                        <button 
-                            onClick={handleDownload} 
-                            className="glass-button"
-                            style={{ 
-                                padding: '8px', 
-                            }}
-                            title="下载"
-                        >
-                            <FaDownload />
-                        </button>
-                    </div>
-                )}
-                
-                <button 
-                    onClick={cycleTheme}
-                    className="glass-button"
-                    title={`当前模式: ${theme === 'system' ? '跟随系统' : theme === 'light' ? '浅色' : '深色'}`}
-                >
-                    {getThemeIcon()}
-                </button>
+                        </>
+                    )}
+                    
+                    <button 
+                        onClick={toggleAISidebar}
+                        className="glass-button"
+                        title="Copilot"
+                        style={{ padding: '8px' }}
+                    >
+                        <FaMagic />
+                    </button>
+                    
+                    <button 
+                        onClick={cycleTheme}
+                        className="glass-button"
+                        title={`当前模式: ${theme === 'system' ? '跟随系统' : theme === 'light' ? '浅色' : '深色'}`}
+                    >
+                        {getThemeIcon()}
+                    </button>
+                </div>
             </div>
             
-            <button 
-                onClick={toggleAISidebar}
-                className="glass-button"
-                title="Copilot"
-                style={{ marginLeft: '8px' }}
-            >
-                <FaMagic />
-            </button>
-            
             {/* Mobile Menu Toggle */}
-            {isMobile && selectedFile && (
+            {isMobile && (
                 <button 
                     onClick={() => setShowMobileMenu(!showMobileMenu)} 
                     className="glass-button"

@@ -3,7 +3,7 @@ import { ossRegions, getEndpoint } from '../utils/regions';
 import type { OSSConfigData, AIConfigData, R2ConfigData, StorageProvider } from '../types';
 import { encrypt, decrypt } from '../utils/crypto';
 import { useUI } from '../contexts/UIContext';
-import { FaServer, FaCloud, FaMagic, FaCheckCircle, FaLock } from 'react-icons/fa';
+import { FaServer, FaCloud, FaMagic, FaCheckCircle, FaLock, FaArrowLeft } from 'react-icons/fa';
 
 interface OSSConfigProps {
   onConfigSaved: (provider: StorageProvider, config: OSSConfigData | R2ConfigData) => void;
@@ -14,6 +14,25 @@ const OSSConfig: React.FC<OSSConfigProps> = ({ onConfigSaved, onAIConfigSaved })
   const { showToast } = useUI();
   const [activeTab, setActiveTab] = useState<'aliyun' | 'r2' | 'ai' | 'security'>('aliyun');
   const [activeProvider, setActiveProvider] = useState<StorageProvider>('aliyun');
+  
+  // Mobile responsive state
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [showContent, setShowContent] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+        setIsMobile(window.innerWidth <= 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const handleTabClick = (tab: 'aliyun' | 'r2' | 'ai' | 'security') => {
+      setActiveTab(tab);
+      if (isMobile) {
+          setShowContent(true);
+      }
+  };
 
   const [ossFormData, setOssFormData] = useState<OSSConfigData>({
     accessKeyId: '',
@@ -233,96 +252,110 @@ const OSSConfig: React.FC<OSSConfigProps> = ({ onConfigSaved, onAIConfigSaved })
   };
 
   return (
-    <div style={{ display: 'flex', height: '500px' }}>
+    <div style={{ display: 'flex', height: '500px', flexDirection: isMobile ? 'column' : 'row' }}>
         {/* Sidebar */}
-        <div style={{ 
-            width: '180px', 
-            borderRight: '1px solid var(--border-subtle)', 
-            paddingRight: '16px',
-            marginRight: '16px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px'
-        }}>
-            <div 
-                className={`config-tab ${activeTab === 'aliyun' ? 'active' : ''}`}
-                onClick={() => setActiveTab('aliyun')}
-                style={{ 
-                    padding: '10px 12px', 
-                    cursor: 'pointer', 
-                    borderRadius: '8px',
-                    backgroundColor: activeTab === 'aliyun' ? 'var(--bg-secondary)' : 'transparent',
-                    color: activeTab === 'aliyun' ? 'var(--accent-primary)' : 'var(--text-primary)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    fontSize: '14px',
-                    fontWeight: 500
-                }}
-            >
-                <FaServer /> Aliyun OSS
-                {activeProvider === 'aliyun' && <FaCheckCircle style={{ marginLeft: 'auto', color: '#4caf50' }} />}
+        {(!isMobile || !showContent) && (
+            <div style={{ 
+                width: isMobile ? '100%' : '180px', 
+                borderRight: isMobile ? 'none' : '1px solid var(--border-subtle)', 
+                paddingRight: isMobile ? 0 : '16px',
+                marginRight: isMobile ? 0 : '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
+            }}>
+                <div 
+                    className={`config-tab ${activeTab === 'aliyun' ? 'active' : ''}`}
+                    onClick={() => handleTabClick('aliyun')}
+                    style={{ 
+                        padding: '10px 12px', 
+                        cursor: 'pointer', 
+                        borderRadius: '8px',
+                        backgroundColor: activeTab === 'aliyun' ? 'var(--bg-secondary)' : 'transparent',
+                        color: activeTab === 'aliyun' ? 'var(--accent-primary)' : 'var(--text-primary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        fontSize: '14px',
+                        fontWeight: 500
+                    }}
+                >
+                    <FaServer /> Aliyun OSS
+                    {activeProvider === 'aliyun' && <FaCheckCircle style={{ marginLeft: 'auto', color: '#4caf50' }} />}
+                </div>
+                <div 
+                    className={`config-tab ${activeTab === 'r2' ? 'active' : ''}`}
+                    onClick={() => handleTabClick('r2')}
+                    style={{ 
+                        padding: '10px 12px', 
+                        cursor: 'pointer', 
+                        borderRadius: '8px',
+                        backgroundColor: activeTab === 'r2' ? 'var(--bg-secondary)' : 'transparent',
+                        color: activeTab === 'r2' ? 'var(--accent-primary)' : 'var(--text-primary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        fontSize: '14px',
+                        fontWeight: 500
+                    }}
+                >
+                    <FaCloud /> Cloudflare R2
+                    {activeProvider === 'r2' && <FaCheckCircle style={{ marginLeft: 'auto', color: '#4caf50' }} />}
+                </div>
+                <div 
+                    className={`config-tab ${activeTab === 'ai' ? 'active' : ''}`}
+                    onClick={() => handleTabClick('ai')}
+                    style={{ 
+                        padding: '10px 12px', 
+                        cursor: 'pointer', 
+                        borderRadius: '8px',
+                        backgroundColor: activeTab === 'ai' ? 'var(--bg-secondary)' : 'transparent',
+                        color: activeTab === 'ai' ? 'var(--accent-primary)' : 'var(--text-primary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        fontSize: '14px',
+                        fontWeight: 500
+                    }}
+                >
+                    <FaMagic /> AI Configuration
+                </div>
+                 <div 
+                    className={`config-tab ${activeTab === 'security' ? 'active' : ''}`}
+                    onClick={() => handleTabClick('security')}
+                    style={{ 
+                        padding: '10px 12px', 
+                        cursor: 'pointer', 
+                        borderRadius: '8px',
+                        backgroundColor: activeTab === 'security' ? 'var(--bg-secondary)' : 'transparent',
+                        color: activeTab === 'security' ? 'var(--accent-primary)' : 'var(--text-primary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        fontSize: '14px',
+                        fontWeight: 500
+                    }}
+                >
+                    <FaLock /> 安全设置
+                </div>
             </div>
-            <div 
-                className={`config-tab ${activeTab === 'r2' ? 'active' : ''}`}
-                onClick={() => setActiveTab('r2')}
-                style={{ 
-                    padding: '10px 12px', 
-                    cursor: 'pointer', 
-                    borderRadius: '8px',
-                    backgroundColor: activeTab === 'r2' ? 'var(--bg-secondary)' : 'transparent',
-                    color: activeTab === 'r2' ? 'var(--accent-primary)' : 'var(--text-primary)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    fontSize: '14px',
-                    fontWeight: 500
-                }}
-            >
-                <FaCloud /> Cloudflare R2
-                {activeProvider === 'r2' && <FaCheckCircle style={{ marginLeft: 'auto', color: '#4caf50' }} />}
-            </div>
-            <div 
-                className={`config-tab ${activeTab === 'ai' ? 'active' : ''}`}
-                onClick={() => setActiveTab('ai')}
-                style={{ 
-                    padding: '10px 12px', 
-                    cursor: 'pointer', 
-                    borderRadius: '8px',
-                    backgroundColor: activeTab === 'ai' ? 'var(--bg-secondary)' : 'transparent',
-                    color: activeTab === 'ai' ? 'var(--accent-primary)' : 'var(--text-primary)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    fontSize: '14px',
-                    fontWeight: 500
-                }}
-            >
-                <FaMagic /> AI Configuration
-            </div>
-             <div 
-                className={`config-tab ${activeTab === 'security' ? 'active' : ''}`}
-                onClick={() => setActiveTab('security')}
-                style={{ 
-                    padding: '10px 12px', 
-                    cursor: 'pointer', 
-                    borderRadius: '8px',
-                    backgroundColor: activeTab === 'security' ? 'var(--bg-secondary)' : 'transparent',
-                    color: activeTab === 'security' ? 'var(--accent-primary)' : 'var(--text-primary)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    fontSize: '14px',
-                    fontWeight: 500
-                }}
-            >
-                <FaLock /> 安全设置
-            </div>
-        </div>
+        )}
 
         {/* Content */}
-        <div style={{ flex: 1, overflowY: 'auto', paddingRight: '8px' }}>
-            <form onSubmit={handleSave}>
+        {(!isMobile || showContent) && (
+            <div style={{ flex: 1, overflowY: 'auto', paddingRight: '8px' }}>
+                {isMobile && (
+                    <div style={{ marginBottom: 16 }}>
+                         <button 
+                            onClick={() => setShowContent(false)}
+                            className="glass-button"
+                            style={{ padding: '6px 12px', fontSize: 13 }}
+                         >
+                             <FaArrowLeft size={12} /> 返回
+                         </button>
+                    </div>
+                )}
+                <form onSubmit={handleSave}>
                 {activeTab === 'aliyun' && (
                     <>
                         <h3 style={{ marginTop: 0, marginBottom: 24 }}>Aliyun OSS 设置</h3>
@@ -608,6 +641,7 @@ const OSSConfig: React.FC<OSSConfigProps> = ({ onConfigSaved, onAIConfigSaved })
                 </div>
             </form>
         </div>
+        )}
     </div>
   );
 };
