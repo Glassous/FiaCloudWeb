@@ -327,6 +327,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
             >
                 <FaBars />
             </button>
+
+            <div style={{ width: '32px', height: '32px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="100%" height="100%" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M16 12C16 7.58172 19.5817 4 24 4H36C44.8366 4 52 11.1634 52 20C52 28.8366 44.8366 36 36 36H24V20C24 17.7909 22.2091 16 20 16H16Z" stroke="currentColor" strokeWidth="4"/>
+                    <rect x="16" y="14" width="14" height="44" rx="7" stroke="currentColor" strokeWidth="4" />
+                    <circle cx="44" cy="42" r="12" stroke="currentColor" strokeWidth="4" />
+                </svg>
+            </div>
             
             {/* Dynamic Title - Hides when mobile menu is open */}
             <div className={`header-title-wrapper ${isMobile && showMobileMenu ? 'hidden' : ''}`} style={{ 

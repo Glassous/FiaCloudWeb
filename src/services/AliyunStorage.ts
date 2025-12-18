@@ -59,7 +59,12 @@ export class AliyunStorage implements StorageService {
     }
 
     async putContent(path: string, content: string | Blob): Promise<void> {
-        await this.client.put(path, content);
+        if (typeof content === 'string') {
+            const blob = new Blob([content], { type: 'text/plain' });
+            await this.client.put(path, blob);
+        } else {
+            await this.client.put(path, content);
+        }
     }
 
     async copy(source: string, destination: string): Promise<void> {
