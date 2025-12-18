@@ -53,7 +53,7 @@ export class R2Storage implements StorageService {
         return ''; 
     }
 
-    async upload(file: File, path: string): Promise<void> {
+    async upload(file: File, path: string, onProgress?: (progress: number) => void): Promise<void> {
         const parallelUploads3 = new Upload({
             client: this.client,
             params: {
@@ -63,6 +63,13 @@ export class R2Storage implements StorageService {
                 ContentType: file.type, 
             },
         });
+
+        parallelUploads3.on("httpUploadProgress", (progress) => {
+            if (onProgress && progress.loaded && progress.total) {
+                onProgress(Math.floor((progress.loaded / progress.total) * 100));
+            }
+        });
+
         await parallelUploads3.done();
     }
 

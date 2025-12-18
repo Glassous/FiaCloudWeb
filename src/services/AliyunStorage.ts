@@ -34,8 +34,14 @@ export class AliyunStorage implements StorageService {
         return fileList;
     }
 
-    async upload(file: File, path: string): Promise<void> {
-        await this.client.put(path, file);
+    async upload(file: File, path: string, onProgress?: (progress: number) => void): Promise<void> {
+        await this.client.multipartUpload(path, file, {
+            progress: (p: number) => {
+                if (onProgress) {
+                    onProgress(Math.floor(p * 100));
+                }
+            }
+        });
     }
 
     async delete(path: string): Promise<void> {

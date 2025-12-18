@@ -127,7 +127,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
     deleteFolder,
     renameFile,
     createFolder,
-    createTextFile
+    createTextFile,
+    uploadProgress,
+    uploadingFile
   } = useStorage();
 
   useEffect(() => {
@@ -208,7 +210,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
                       file.name.toLowerCase().endsWith('.webm') || 
                       file.name.toLowerCase().endsWith('.ogg');
 
-      if (isImg || isVideo) {
+      const isAudio = file.name.toLowerCase().endsWith('.mp3') || 
+                      file.name.toLowerCase().endsWith('.wav') || 
+                      file.name.toLowerCase().endsWith('.flac') || 
+                      file.name.toLowerCase().endsWith('.aac') || 
+                      file.name.toLowerCase().endsWith('.m4a');
+
+      if (isImg || isVideo || isAudio) {
           const url = await getFileUrl(file.name);
           setPreviewUrl(url);
       }
@@ -347,9 +355,40 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
                 fontSize: '18px', 
                 fontWeight: 'bold', 
                 flexShrink: 1, 
-                textOverflow: 'ellipsis'
+                textOverflow: 'ellipsis',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
             }}>
-                {selectedFile ? selectedFile.name.split('/').pop() : 'FiaCloud'}
+                {selectedFile ? (
+                    <>
+                        <span>{selectedFile.name.split('/').pop()}</span>
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleFileSelect(null);
+                            }}
+                            className="glass-button"
+                            style={{
+                                padding: '0',
+                                width: '20px',
+                                height: '20px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '10px',
+                                borderRadius: '50%',
+                                border: 'none',
+                                background: 'rgba(128,128,128,0.2)',
+                                cursor: 'pointer',
+                                color: 'var(--text-secondary)'
+                            }}
+                            title="关闭文件"
+                        >
+                            <FaTimes />
+                        </button>
+                    </>
+                ) : 'FiaCloud'}
             </div>
             
             <div style={{ flex: 1 }} />
@@ -528,6 +567,25 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
                 />
             )}
             <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                {uploadingFile && (
+                    <div style={{ padding: '12px', borderBottom: '1px solid var(--border-subtle)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '12px', color: 'var(--text-primary)' }}>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>
+                                上传中: {uploadingFile}
+                            </span>
+                            <span>{uploadProgress}%</span>
+                        </div>
+                        <div style={{ width: '100%', height: '4px', background: 'rgba(128,128,128,0.2)', borderRadius: '2px' }}>
+                            <div style={{ 
+                                width: `${uploadProgress}%`, 
+                                height: '100%', 
+                                background: '#4caf50', 
+                                borderRadius: '2px',
+                                transition: 'width 0.2s ease'
+                            }} />
+                        </div>
+                    </div>
+                )}
                 <FileList 
                     files={files}
                     selectedFile={selectedFile}

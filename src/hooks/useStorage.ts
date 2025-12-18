@@ -9,6 +9,8 @@ export const useStorage = () => {
   const [service, setService] = useState<StorageService | null>(null);
   const [files, setFiles] = useState<OSSFile[]>([]);
   const [loading, setLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadingFile, setUploadingFile] = useState<string | null>(null);
   const { showToast } = useUI();
 
   const initClient = useCallback((provider: StorageProvider, config: OSSConfigData | R2ConfigData) => {
@@ -47,9 +49,13 @@ export const useStorage = () => {
   const uploadFile = useCallback(async (file: File, folderPath?: string) => {
     if (!service) return;
     setLoading(true);
+    setUploadingFile(file.name);
+    setUploadProgress(0);
     try {
        const fullPath = folderPath ? `${folderPath}/${file.name}` : file.name;
-       await service.upload(file, fullPath);
+       await service.upload(file, fullPath, (progress) => {
+           setUploadProgress(progress);
+       });
 
        const parts = fullPath.split('/');
        if (parts.length > 1) {
@@ -69,6 +75,8 @@ export const useStorage = () => {
         showToast(`${file.name} 上传失败`, 'error');
     } finally {
         setLoading(false);
+        setUploadingFile(null);
+        setUploadProgress(0);
     }
   }, [service, listFiles, showToast]);
 
@@ -265,6 +273,8 @@ export const useStorage = () => {
     deleteFolder,
     renameFile,
     createFolder,
-    createTextFile
+    createTextFile,
+    uploadProgress,
+    uploadingFile
   };
 };

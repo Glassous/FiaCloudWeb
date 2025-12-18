@@ -57,10 +57,16 @@ const FilePreview: React.FC<FilePreviewProps> = ({
                   file.name.toLowerCase().endsWith('.webp')) : false;
   
   const isVideo = file ? (file.name.toLowerCase().endsWith('.mp4') || 
-                  file.name.toLowerCase().endsWith('.webm') || 
-                  file.name.toLowerCase().endsWith('.ogg')) : false;
+                   file.name.toLowerCase().endsWith('.webm') || 
+                   file.name.toLowerCase().endsWith('.ogg')) : false;
 
-  useEffect(() => {
+   const isAudio = file ? (file.name.toLowerCase().endsWith('.mp3') || 
+                   file.name.toLowerCase().endsWith('.wav') || 
+                   file.name.toLowerCase().endsWith('.flac') || 
+                   file.name.toLowerCase().endsWith('.aac') || 
+                   file.name.toLowerCase().endsWith('.m4a')) : false;
+
+   useEffect(() => {
       if (showExif && previewUrl && isImage && file) {
           setExifLoading(true);
           fetch(previewUrl)
@@ -403,37 +409,66 @@ const FilePreview: React.FC<FilePreviewProps> = ({
                   )}
               </div>
           ) : isVideo ? (
-              <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'center', 
-                  alignItems: 'center', 
-                  height: '100%', 
-                  backgroundColor: 'rgba(0,0,0,0.1)',
-                  padding: '20px'
-              }}>
-                  {previewUrl ? (
-                      <video 
-                          controls
-                          src={previewUrl} 
-                          style={{ 
-                              maxWidth: '100%', 
-                              maxHeight: '100%', 
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                              borderRadius: '8px'
-                          }} 
-                      >
-                          您的浏览器不支持视频播放。
-                      </video>
-                  ) : (
-                      <div>无法加载视频预览</div>
-                  )}
-              </div>
-          ) : (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', flexDirection: 'column', color: 'var(--text-secondary)' }}>
-               <div style={{ fontSize: 40, marginBottom: 10 }}>📦</div>
-               <div>当前仅支持预览文本文件、图片和视频，请下载查看</div>
-            </div>
-          )
+               <div style={{ 
+                   display: 'flex', 
+                   justifyContent: 'center', 
+                   alignItems: 'center', 
+                   height: '100%', 
+                   backgroundColor: 'rgba(0,0,0,0.1)',
+                   padding: '20px'
+               }}>
+                   {previewUrl ? (
+                       <video 
+                           controls
+                           src={previewUrl} 
+                           style={{ 
+                               maxWidth: '100%', 
+                               maxHeight: '100%', 
+                               boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                               borderRadius: '8px'
+                           }} 
+                       >
+                           您的浏览器不支持视频播放。
+                       </video>
+                   ) : (
+                       <div>无法加载视频预览</div>
+                   )}
+               </div>
+           ) : isAudio ? (
+               <div style={{ 
+                   display: 'flex', 
+                   justifyContent: 'center', 
+                   alignItems: 'center', 
+                   height: '100%', 
+                   backgroundColor: 'rgba(0,0,0,0.1)',
+                   padding: '20px',
+                   flexDirection: 'column'
+               }}>
+                   <div style={{ fontSize: 64, marginBottom: 24 }}>🎵</div>
+                   {previewUrl ? (
+                       <audio 
+                           controls
+                           src={previewUrl} 
+                           style={{ 
+                               width: '100%',
+                               maxWidth: '500px',
+                               boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                               borderRadius: '30px'
+                           }} 
+                       >
+                           您的浏览器不支持音频播放。
+                       </audio>
+                   ) : (
+                       <div>无法加载音频预览</div>
+                   )}
+                   <div style={{ marginTop: 20, fontSize: 16, fontWeight: 'bold' }}>{file.name}</div>
+               </div>
+           ) : (
+             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', flexDirection: 'column', color: 'var(--text-secondary)' }}>
+                <div style={{ fontSize: 40, marginBottom: 10 }}>📦</div>
+                <div>当前仅支持预览文本文件、图片、视频和音频，请下载查看</div>
+             </div>
+           )
         )}
       </div>
     </div>
