@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaSignOutAlt, FaCog, FaTimes, FaSun, FaMoon, FaAdjust, FaBars } from 'react-icons/fa';
+import { FaSignOutAlt, FaCog, FaTimes, FaSun, FaMoon, FaAdjust, FaBars, FaDownload, FaSearchPlus, FaSearchMinus } from 'react-icons/fa';
 import OSSConfig from './OSSConfig';
 import FileList from './FileList';
 import FilePreview from './FilePreview';
@@ -20,6 +20,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
   const [contentLoading, setContentLoading] = useState(false);
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 768);
+  const [fontSize, setFontSize] = useState(14);
   
   const { theme, cycleTheme } = useTheme();
   const { showConfirm, showToast } = useUI();
@@ -93,6 +94,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
     if (file) {
       setSelectedFile(file);
       setFileContent('');
+      setFontSize(14); // Reset font size
       
       if (file.name.endsWith('.txt') || file.name.endsWith('.md') || file.name.endsWith('.json') || file.name.endsWith('.js') || file.name.endsWith('.ts')) {
         setContentLoading(true);
@@ -149,6 +151,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
     return <FaAdjust />;
   };
 
+  const isTextFile = selectedFile && (
+      selectedFile.name.endsWith('.txt') || 
+      selectedFile.name.endsWith('.md') || 
+      selectedFile.name.endsWith('.json') || 
+      selectedFile.name.endsWith('.js') || 
+      selectedFile.name.endsWith('.ts')
+  );
+
   if (!isConfigured) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', width: '100vw', position: 'relative' }}>
@@ -173,26 +183,97 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
     <div style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
       <div className="glass-panel app-header" style={{ borderRadius: 0, borderTop: 0, borderLeft: 0, borderRight: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1, overflow: 'hidden' }}>
             <button 
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                 className="glass-button"
-                style={{ padding: '8px', border: 'none', background: 'transparent', fontSize: '18px' }}
+                style={{ padding: '8px', border: 'none', background: 'transparent', fontSize: '18px', flexShrink: 0 }}
                 title={isSidebarOpen ? "收起侧栏" : "展开侧栏"}
             >
                 <FaBars />
             </button>
-            <div style={{ fontSize: '18px', fontWeight: 'bold' }}>FiaCloud</div>
+            <div style={{ fontSize: '18px', fontWeight: 'bold', flexShrink: 0 }}>FiaCloud</div>
+            
+            {selectedFile && (
+                <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    marginLeft: '24px', 
+                    flex: 1, 
+                    overflow: 'hidden',
+                    gap: '16px'
+                }}>
+                    <div style={{ 
+                        overflow: 'hidden', 
+                        whiteSpace: 'nowrap', 
+                        textOverflow: 'ellipsis', 
+                        fontWeight: 500,
+                        color: 'var(--text-primary)',
+                        borderLeft: '1px solid var(--border-glass)',
+                        paddingLeft: '16px'
+                    }}>
+                        {selectedFile.name}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
+                        {isTextFile && (
+                            <>
+                                <button 
+                                    onClick={() => setFontSize(s => Math.min(s + 2, 32))} 
+                                    title="放大" 
+                                    className="glass-button"
+                                    style={{ padding: '6px 10px' }}
+                                >
+                                    <FaSearchPlus />
+                                </button>
+                                <button 
+                                    onClick={() => setFontSize(s => Math.max(s - 2, 10))} 
+                                    title="缩小" 
+                                    className="glass-button"
+                                    style={{ padding: '6px 10px' }}
+                                >
+                                    <FaSearchMinus />
+                                </button>
+                            </>
+                        )}
+                        <button 
+                            onClick={handleDownload} 
+                            className="glass-button primary"
+                            style={{ 
+                                padding: '6px 15px', 
+                                gap: 6
+                            }}
+                        >
+                            <FaDownload /> 下载
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
-            <button 
-                onClick={cycleTheme}
-                className="glass-button"
-                title={`当前模式: ${theme === 'system' ? '跟随系统' : theme === 'light' ? '浅色' : '深色'}`}
-            >
-                {getThemeIcon()}
-            </button>
-        </div>
+        
+        {!selectedFile && (
+             <div style={{ display: 'flex', gap: '10px' }}>
+                <button 
+                    onClick={cycleTheme}
+                    className="glass-button"
+                    title={`当前模式: ${theme === 'system' ? '跟随系统' : theme === 'light' ? '浅色' : '深色'}`}
+                >
+                    {getThemeIcon()}
+                </button>
+            </div>
+        )}
+        
+        {selectedFile && (
+             <div style={{ display: 'flex', gap: '10px', marginLeft: '10px' }}>
+                <button 
+                    onClick={cycleTheme}
+                    className="glass-button"
+                    title={`当前模式: ${theme === 'system' ? '跟随系统' : theme === 'light' ? '浅色' : '深色'}`}
+                >
+                    {getThemeIcon()}
+                </button>
+            </div>
+        )}
       </div>
       
       {/* Content */}
@@ -250,7 +331,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
             file={selectedFile}
             content={fileContent}
             loading={contentLoading}
-            onDownload={handleDownload}
+            fontSize={fontSize}
           />
         </div>
       </div>
