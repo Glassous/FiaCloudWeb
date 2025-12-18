@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { FaSignOutAlt, FaCog, FaTimes, FaSun, FaMoon, FaAdjust, FaBars, FaDownload, FaSearchPlus, FaSearchMinus, FaEllipsisV, FaCode, FaEye, FaSave, FaRobot } from 'react-icons/fa';
+import { FaSignOutAlt, FaCog, FaTimes, FaSun, FaMoon, FaAdjust, FaBars, FaDownload, FaSearchPlus, FaSearchMinus, FaEllipsisV, FaCode, FaEye, FaSave, FaRobot, FaCamera } from 'react-icons/fa';
 import OSSConfig from './OSSConfig';
 import FileList from './FileList';
 import FilePreview from './FilePreview';
@@ -27,6 +27,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [fontSize, setFontSize] = useState(14);
+  const [showExif, setShowExif] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   
   const { theme, cycleTheme } = useTheme();
   const { showConfirm, showToast } = useUI();
@@ -171,6 +173,19 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
       setSelectedFile(file);
       setFileContent('');
       setFontSize(14); // Reset font size
+      setShowExif(false);
+      setPreviewUrl(null);
+      
+      const isImg = file.name.toLowerCase().endsWith('.jpg') || 
+                   file.name.toLowerCase().endsWith('.jpeg') || 
+                   file.name.toLowerCase().endsWith('.png') || 
+                   file.name.toLowerCase().endsWith('.gif') || 
+                   file.name.toLowerCase().endsWith('.webp');
+
+      if (isImg) {
+          const url = getFileUrl(file.name);
+          setPreviewUrl(url);
+      }
       
       if (file.name.endsWith('.txt') || file.name.endsWith('.md') || file.name.endsWith('.json') || file.name.endsWith('.js') || file.name.endsWith('.ts') || file.name.endsWith('.csv')) {
         setContentLoading(true);
@@ -187,6 +202,16 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
     } else {
         setSelectedFile(null);
         setFileContent('');
+    }
+  };
+
+  const handleSaveExif = async (file: File) => {
+    await uploadFile(file);
+    // Refresh the preview URL to ensure the latest image is shown
+    // Note: Browser caching might still show old image, adding timestamp might help but signatureUrl usually changes
+    if (selectedFile) {
+      const url = getFileUrl(selectedFile.name);
+      setPreviewUrl(url);
     }
   };
 
@@ -252,6 +277,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
       selectedFile.name.endsWith('.js') || 
       selectedFile.name.endsWith('.ts') ||
       selectedFile.name.endsWith('.csv')
+  );
+
+  const isImageFile = selectedFile && (
+      selectedFile.name.toLowerCase().endsWith('.jpg') || 
+      selectedFile.name.toLowerCase().endsWith('.jpeg') || 
+      selectedFile.name.toLowerCase().endsWith('.png') || 
+      selectedFile.name.toLowerCase().endsWith('.gif') || 
+      selectedFile.name.toLowerCase().endsWith('.webp')
   );
 
   if (!isConfigured) {
@@ -381,6 +414,22 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
                                 </button>
                             </>
                         )}
+
+                        {isImageFile && (
+                            <button
+                                onClick={() => setShowExif(!showExif)}
+                                className="glass-button"
+                                style={{
+                                    padding: '6px 10px',
+                                    backgroundColor: showExif ? 'var(--bg-primary)' : 'transparent',
+                                    color: showExif ? 'var(--text-primary)' : 'var(--text-secondary)'
+                                }}
+                                title={showExif ? "隐藏 EXIF" : "显示 EXIF"}
+                            >
+                                <FaCamera />
+                            </button>
+                        )}
+
                         <button 
                             onClick={handleDownload} 
                             className="glass-button"
@@ -505,6 +554,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
             fontSize={fontSize}
             viewMode={viewMode}
             onContentChange={setEditedContent}
+            previewUrl={previewUrl}
+            showExif={showExif}
+            onSaveExif={handleSaveExif}
           />
         </div>
 

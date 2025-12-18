@@ -1,10 +1,13 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import Papa from 'papaparse';
 import 'katex/dist/katex.min.css';
+// @ts-ignore
+import piexif from 'piexifjs';
+import { FaSave } from 'react-icons/fa';
 import type { OSSFile } from '../types';
 import DiffViewer from './DiffViewer';
 import { useAI } from '../contexts/AIContext';
@@ -16,6 +19,9 @@ interface FilePreviewProps {
   fontSize?: number;
   viewMode?: 'preview' | 'source';
   onContentChange?: (content: string) => void;
+  previewUrl?: string | null;
+  showExif?: boolean;
+  onSaveExif?: (file: File) => Promise<void>;
 }
 
 const FilePreview: React.FC<FilePreviewProps> = ({ 
@@ -24,22 +30,162 @@ const FilePreview: React.FC<FilePreviewProps> = ({
   loading, 
   fontSize = 14,
   viewMode = 'preview',
-  onContentChange
+  onContentChange,
+  previewUrl,
+  showExif = false,
+  onSaveExif
 }) => {
   const { isEditMode, originalEditContent, setOriginalEditContent } = useAI();
+  const [exifData, setExifData] = useState<any>(null);
+  const [imgBase64, setImgBase64] = useState<string | null>(null);
+  const [exifLoading, setExifLoading] = useState(false);
 
-  if (!file) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: 'var(--text-secondary)', flexDirection: 'column' }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>📄</div>
-        <div>请选择文件进行预览</div>
-      </div>
-    );
-  }
+  const isTextFile = file ? (file.name.endsWith('.txt') || file.name.endsWith('.md') || file.name.endsWith('.json') || file.name.endsWith('.js') || file.name.endsWith('.ts') || file.name.endsWith('.csv')) : false;
+  const isMarkdown = file ? file.name.endsWith('.md') : false;
+  const isCSV = file ? file.name.endsWith('.csv') : false;
+  const isImage = file ? (file.name.toLowerCase().endsWith('.jpg') || 
+                  file.name.toLowerCase().endsWith('.jpeg') || 
+                  file.name.toLowerCase().endsWith('.png') || 
+                  file.name.toLowerCase().endsWith('.gif') || 
+                  file.name.toLowerCase().endsWith('.webp')) : false;
 
-  const isTextFile = file.name.endsWith('.txt') || file.name.endsWith('.md') || file.name.endsWith('.json') || file.name.endsWith('.js') || file.name.endsWith('.ts') || file.name.endsWith('.csv');
-  const isMarkdown = file.name.endsWith('.md');
-  const isCSV = file.name.endsWith('.csv');
+  useEffect(() => {
+      if (showExif && previewUrl && isImage && file) {
+          setExifLoading(true);
+          fetch(previewUrl)
+              .then(res => res.blob())
+              .then(blob => {
+                  const reader = new FileReader();
+                  reader.onload = (e) => {
+                      const result = e.target?.result as string;
+                      setImgBase64(result);
+                      try {
+                          // piexif only supports jpeg
+                          if (file.name.toLowerCase().endsWith('.jpg') || file.name.toLowerCase().endsWith('.jpeg')) {
+                              const exif = piexif.load(result);
+                              setExifData(exif);
+                          } else {
+                              setExifData(null);
+                          }
+                      } catch (e) {
+                          console.error('Failed to load EXIF', e);
+                          setExifData(null);
+                      }
+                      setExifLoading(false);
+                  };
+                  reader.readAsDataURL(blob);
+              })
+              .catch(e => {
+                  console.error('Failed to fetch image', e);
+                  setExifLoading(false);
+              });
+      } else {
+          setExifData(null);
+          setImgBase64(null);
+      }
+  }, [showExif, previewUrl, isImage, file?.name]);
+
+  const handleExifChange = (group: string, tag: string, value: string) => {
+      if (!exifData) return;
+      
+      const newExif = { ...exifData };
+      if (!newExif[group]) newExif[group] = {};
+      
+      // Try to convert value to appropriate type if possible, mostly string for simplicity in this demo
+      newExif[group][tag] = value;
+      
+      setExifData(newExif);
+  };
+
+  const saveExif = async () => {
+      if (!imgBase64 || !exifData || !onSaveExif || !file) return;
+      try {
+          const exifBytes = piexif.dump(exifData);
+          const newJpeg = piexif.insert(exifBytes, imgBase64);
+          
+          // Convert base64 to Blob/File
+          const arr = newJpeg.split(',');
+          // @ts-ignore
+          const mime = arr[0].match(/:(.*?);/)[1];
+          const bstr = atob(arr[1]);
+          let n = bstr.length;
+          const u8arr = new Uint8Array(n);
+          while(n--){
+              u8arr[n] = bstr.charCodeAt(n);
+          }
+          const newFile = new File([u8arr], file.name, {type: mime});
+          await onSaveExif(newFile);
+      } catch (e) {
+          console.error('Failed to save EXIF', e);
+          alert('保存 EXIF 失败: ' + (e as any).message);
+      }
+  };
+
+  const renderExifEditor = () => {
+      if (exifLoading) return <div>加载 EXIF 中...</div>;
+      if (!exifData) return <div>无 EXIF 数据或不支持该格式</div>;
+
+      const groups = ['0th', 'Exif', 'GPS', '1st'];
+      
+      return (
+          <div style={{ padding: '16px', overflow: 'auto', height: '100%', background: 'rgba(0,0,0,0.2)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <h3 style={{ margin: 0 }}>EXIF 编辑</h3>
+                  <button onClick={saveExif} className="glass-button" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <FaSave /> 保存
+                  </button>
+              </div>
+              
+              {groups.map(group => {
+                  if (!exifData[group]) return null;
+                  const tags = exifData[group];
+                  return (
+                      <div key={group} style={{ marginBottom: '16px' }}>
+                          <h4 style={{ borderBottom: '1px solid var(--border-subtle)', paddingBottom: '4px' }}>{group}</h4>
+                          {Object.keys(tags).map(tagId => {
+                              const val = tags[tagId];
+                              const isEditable = typeof val === 'string' || typeof val === 'number';
+                              
+                              let tagName = tagId;
+                              try {
+                                  // @ts-ignore
+                                  if (piexif.TAGS[group] && piexif.TAGS[group][tagId]) {
+                                      // @ts-ignore
+                                      tagName = piexif.TAGS[group][tagId].name;
+                                  }
+                              } catch(e) {}
+
+                              return (
+                                  <div key={tagId} style={{ marginBottom: '8px' }}>
+                                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{tagName} ({tagId})</div>
+                                      {isEditable ? (
+                                          <input 
+                                              type="text" 
+                                              value={val} 
+                                              onChange={(e) => handleExifChange(group, tagId, e.target.value)}
+                                              style={{ 
+                                                  width: '100%', 
+                                                  background: 'rgba(0,0,0,0.1)', 
+                                                  border: '1px solid var(--border-glass)',
+                                                  color: 'var(--text-primary)',
+                                                  padding: '4px',
+                                                  borderRadius: '4px'
+                                              }}
+                                          />
+                                      ) : (
+                                          <div style={{ fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                              {JSON.stringify(val)}
+                                          </div>
+                                      )}
+                                  </div>
+                              );
+                          })}
+                      </div>
+                  );
+              })}
+          </div>
+      );
+  };
 
   const csvData = useMemo(() => {
     if (!isCSV || !content) return [];
@@ -53,6 +199,15 @@ const FilePreview: React.FC<FilePreviewProps> = ({
   }, [isCSV, content]);
 
   const showDiff = isEditMode && originalEditContent !== null && isTextFile;
+
+  if (!file) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: 'var(--text-secondary)', flexDirection: 'column' }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>📄</div>
+        <div>请选择文件进行预览</div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -136,10 +291,45 @@ const FilePreview: React.FC<FilePreviewProps> = ({
                   {content || <span style={{ color: 'var(--text-placeholder)' }}>文件内容为空</span>}
                 </div>
             )
+          ) : isImage ? (
+              <div style={{ display: 'flex', height: '100%' }}>
+                  <div style={{ 
+                      flex: 1, 
+                      display: 'flex', 
+                      justifyContent: 'center', 
+                      alignItems: 'center', 
+                      overflow: 'hidden',
+                      backgroundColor: 'rgba(0,0,0,0.1)'
+                  }}>
+                      {previewUrl ? (
+                          <img 
+                              src={previewUrl} 
+                              alt={file.name} 
+                              style={{ 
+                                  maxWidth: '100%', 
+                                  maxHeight: '100%', 
+                                  objectFit: 'contain',
+                                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                              }} 
+                          />
+                      ) : (
+                          <div>无法加载预览</div>
+                      )}
+                  </div>
+                  {showExif && (
+                      <div style={{ 
+                          width: '300px', 
+                          borderLeft: '1px solid var(--border-glass)',
+                          background: 'var(--bg-panel)'
+                      }}>
+                          {renderExifEditor()}
+                      </div>
+                  )}
+              </div>
           ) : (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', flexDirection: 'column', color: 'var(--text-secondary)' }}>
                <div style={{ fontSize: 40, marginBottom: 10 }}>📦</div>
-               <div>当前仅支持预览文本文件，请下载查看</div>
+               <div>当前仅支持预览文本文件和图片，请下载查看</div>
             </div>
           )
         )}
