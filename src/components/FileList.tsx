@@ -15,7 +15,6 @@ import {
 import type { OSSFile } from '../types';
 import FileIcon from './FileIcon';
 
-// Types from original code logic
 interface DataNode {
     title: string;
     key: string;
@@ -126,8 +125,7 @@ const FileList: React.FC<FileListProps> = ({
     return root;
   }, [files]);
 
-  const toggleExpand = (key: string, e: React.MouseEvent) => {
-      e.stopPropagation();
+  const toggleExpand = (key: string) => {
       setExpandedKeys(prev => {
           const next = new Set(prev);
           if (next.has(key)) {
@@ -140,7 +138,7 @@ const FileList: React.FC<FileListProps> = ({
   };
 
   const handleNodeClick = (node: DataNode, e: React.MouseEvent) => {
-      e.stopPropagation();
+      // e.stopPropagation(); // Removed to allow document click listener to close context menu
       setSelectedKey(node.key);
       
       if (node.isLeaf) {
@@ -151,7 +149,7 @@ const FileList: React.FC<FileListProps> = ({
           }
       } else {
           setIsFolderSelected(true);
-          onSelect(null, node.key);
+          toggleExpand(node.key);
       }
   };
 
@@ -271,7 +269,13 @@ const FileList: React.FC<FileListProps> = ({
                       className="tree-node"
                   >
                       <span 
-                        onClick={(e) => !node.isLeaf && toggleExpand(node.key, e)}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (!node.isLeaf) {
+                                toggleExpand(node.key);
+                                setContextMenu(null);
+                            }
+                        }}
                         style={{ 
                             width: 20, 
                             display: 'flex', 
@@ -389,11 +393,6 @@ const FileList: React.FC<FileListProps> = ({
       <div 
         style={{ flex: 1, overflow: 'auto', position: 'relative' }} 
         onContextMenu={handleContainerContextMenu}
-        onClick={() => {
-            setSelectedKey(null);
-            setIsFolderSelected(false);
-            onSelect(null, undefined);
-        }}
       >
           {files.length === 0 ? (
               <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
