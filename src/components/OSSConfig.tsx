@@ -2,12 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { ossRegions, getEndpoint } from '../utils/regions';
 import type { OSSConfigData } from '../types';
 import { encrypt, decrypt } from '../utils/crypto';
+import { useUI } from '../contexts/UIContext';
 
 interface OSSConfigProps {
   onConfigSaved: (config: OSSConfigData) => void;
 }
 
 const OSSConfig: React.FC<OSSConfigProps> = ({ onConfigSaved }) => {
+  const { showToast } = useUI();
   const [formData, setFormData] = useState<OSSConfigData>({
     accessKeyId: '',
     accessKeySecret: '',
@@ -52,10 +54,10 @@ const OSSConfig: React.FC<OSSConfigProps> = ({ onConfigSaved }) => {
         const configStr = JSON.stringify(formData);
         const encrypted = encrypt(configStr);
         localStorage.setItem('fiacloud_oss_config', encrypted);
-        alert('配置已保存');
+        showToast('配置已保存', 'success');
         onConfigSaved(formData);
     } catch (e) {
-        alert('配置保存失败');
+        showToast('配置保存失败', 'error');
     }
   };
 

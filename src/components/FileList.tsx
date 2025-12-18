@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useUI } from '../contexts/UIContext';
 import { 
     FaSync, 
     FaCloudUploadAlt, 
@@ -55,6 +56,7 @@ const FileList: React.FC<FileListProps> = ({
   const [isFolderSelected, setIsFolderSelected] = useState(false);
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { showConfirm } = useUI();
   
   // Context Menu State
   const [contextMenu, setContextMenu] = useState<{ visible: boolean; x: number; y: number; nodeKey?: string; nodeTitle?: string } | null>(null);
@@ -206,9 +208,12 @@ const FileList: React.FC<FileListProps> = ({
   };
 
   const handleDeleteConfirm = (key: string, title: string) => {
-      if (window.confirm(`确定要删除 "${title}" 吗？`)) {
-          onDelete(key);
-      }
+      showConfirm({
+          title: '删除确认',
+          message: `确定要删除 "${title}" 吗？此操作无法撤销。`,
+          type: 'danger',
+          onConfirm: () => onDelete(key)
+      });
   };
 
   const handleCreateFolderClick = () => {

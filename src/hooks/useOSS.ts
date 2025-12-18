@@ -1,11 +1,13 @@
 import { useState, useCallback } from 'react';
 import OSS from 'ali-oss';
 import type { OSSConfigData, OSSFile } from '../types';
+import { useUI } from '../contexts/UIContext';
 
 export const useOSS = () => {
   const [client, setClient] = useState<OSS | null>(null);
   const [files, setFiles] = useState<OSSFile[]>([]);
   const [loading, setLoading] = useState(false);
+  const { showToast } = useUI();
 
   const initClient = useCallback((config: OSSConfigData) => {
     try {
@@ -20,10 +22,10 @@ export const useOSS = () => {
       return newClient;
     } catch (error) {
       console.error('Failed to init OSS client:', error);
-      alert('OSS初始化失败，请检查配置');
+      showToast('OSS初始化失败，请检查配置', 'error');
       return null;
     }
-  }, []);
+  }, [showToast]);
 
   const PLACEHOLDER_FILENAME = 'new.fiacloud';
 
@@ -49,11 +51,11 @@ export const useOSS = () => {
       setFiles(fileList);
     } catch (error) {
       console.error('List files error:', error);
-      alert('获取文件列表失败');
+      showToast('获取文件列表失败', 'error');
     } finally {
       setLoading(false);
     }
-  }, [client]);
+  }, [client, showToast]);
 
   const uploadFile = useCallback(async (file: File, folderPath?: string) => {
     if (!client) return;
@@ -79,15 +81,15 @@ export const useOSS = () => {
            }
        }
 
-       alert(`${file.name} 上传成功`);
+       showToast(`${file.name} 上传成功`, 'success');
        await listFiles();
     } catch (error) {
         console.error('Upload error:', error);
-        alert(`${file.name} 上传失败`);
+        showToast(`${file.name} 上传失败`, 'error');
     } finally {
         setLoading(false);
     }
-  }, [client, listFiles]);
+  }, [client, listFiles, showToast]);
 
   const getFileUrl = useCallback((fileName: string) => {
       if (!client) return '';
@@ -104,10 +106,10 @@ export const useOSS = () => {
           return '';
       } catch (error) {
           console.error('Get content error:', error);
-          alert('获取文件内容失败');
+          showToast('获取文件内容失败', 'error');
           return '';
       }
-  }, [client]);
+  }, [client, showToast]);
 
   const deleteFile = useCallback(async (fileName: string) => {
     if (!client) return;
@@ -133,15 +135,15 @@ export const useOSS = () => {
           }
       }
 
-      alert(`${fileName} 删除成功`);
+      showToast(`${fileName} 删除成功`, 'success');
       await listFiles();
     } catch (error) {
       console.error('Delete error:', error);
-      alert(`${fileName} 删除失败`);
+      showToast(`${fileName} 删除失败`, 'error');
     } finally {
       setLoading(false);
     }
-  }, [client, listFiles]);
+  }, [client, listFiles, showToast]);
 
   const renameFile = useCallback(async (oldName: string, newName: string) => {
     if (!client) return;
@@ -177,15 +179,15 @@ export const useOSS = () => {
            }
       }
 
-      alert(`重命名成功`);
+      showToast(`重命名成功`, 'success');
       await listFiles();
     } catch (error) {
       console.error('Rename error:', error);
-      alert(`重命名失败`);
+      showToast(`重命名失败`, 'error');
     } finally {
       setLoading(false);
     }
-  }, [client, listFiles]);
+  }, [client, listFiles, showToast]);
 
   const createFolder = useCallback(async (folderName: string, parentPath?: string) => {
       if (!client) return;
@@ -208,15 +210,15 @@ export const useOSS = () => {
              }
           }
 
-          alert('文件夹创建成功');
+          showToast('文件夹创建成功', 'success');
           await listFiles();
       } catch (error) {
           console.error('Create folder error:', error);
-          alert('创建文件夹失败');
+          showToast('创建文件夹失败', 'error');
       } finally {
           setLoading(false);
       }
-  }, [client, listFiles]);
+  }, [client, listFiles, showToast]);
 
   const createTextFile = useCallback(async (fileName: string, parentPath?: string, content: string = '') => {
       if (!client) return;
@@ -239,15 +241,15 @@ export const useOSS = () => {
                 }
             }
 
-          alert(`${fileName} 创建成功`);
+          showToast(`${fileName} 创建成功`, 'success');
           await listFiles();
       } catch (error) {
           console.error('Create file error:', error);
-          alert('创建文件失败');
+          showToast('创建文件失败', 'error');
       } finally {
           setLoading(false);
       }
-  }, [client, listFiles]);
+  }, [client, listFiles, showToast]);
 
   return {
     client,

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaLock } from 'react-icons/fa';
 import { encrypt, decrypt } from '../utils/crypto';
+import { useUI } from '../contexts/UIContext';
 
 interface LoginProps {
   onLoginSuccess: () => void;
@@ -10,6 +11,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
+  const { showToast } = useUI();
 
   useEffect(() => {
     const savedPassword = localStorage.getItem('fiacloud_auth');
@@ -52,17 +54,17 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             try {
                  const decrypted = decrypt(savedPassword);
                  if (decrypted === password && password !== envPassword) {
-                     alert('密码已修改，请重新输入');
+                     showToast('密码已修改，请重新输入', 'error');
                      localStorage.removeItem('fiacloud_auth'); // Clear invalid password
                      setPassword('');
                  } else {
-                    alert('密码错误');
+                    showToast('密码错误', 'error');
                  }
             } catch {
-                alert('密码错误');
+                showToast('密码错误', 'error');
             }
         } else {
-            alert('密码错误');
+            showToast('密码错误', 'error');
         }
       }
       setLoading(false);

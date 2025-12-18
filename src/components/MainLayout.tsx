@@ -6,6 +6,7 @@ import FilePreview from './FilePreview';
 import { useOSS } from '../hooks/useOSS';
 import { decrypt } from '../utils/crypto';
 import { useTheme } from '../contexts/ThemeContext';
+import { useUI } from '../contexts/UIContext';
 import type { OSSFile, OSSConfigData } from '../types';
 
 interface MainLayoutProps {
@@ -21,6 +22,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 768);
   
   const { theme, cycleTheme } = useTheme();
+  const { showConfirm, showToast } = useUI();
 
   useEffect(() => {
     const handleResize = () => {
@@ -109,7 +111,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
     if (url) {
       window.open(url);
     } else {
-      alert('无法获取下载链接');
+      showToast('无法获取下载链接', 'error');
     }
   };
 
@@ -126,12 +128,18 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
   };
 
   const handleClearConfig = () => {
-      if (window.confirm('确定要清除 OSS 配置吗？这将需要重新输入 AccessKey 等信息。')) {
-          localStorage.removeItem('fiacloud_oss_config');
-          setIsConfigured(false);
-          setSelectedFile(null);
-          setShowConfigModal(false);
-      }
+      showConfirm({
+          title: '清除配置确认',
+          message: '确定要清除 OSS 配置吗？这将需要重新输入 AccessKey 等信息。',
+          type: 'danger',
+          onConfirm: () => {
+              localStorage.removeItem('fiacloud_oss_config');
+              setIsConfigured(false);
+              setSelectedFile(null);
+              setShowConfigModal(false);
+              showToast('配置已清除', 'success');
+          }
+      });
   };
 
   const getThemeIcon = () => {
