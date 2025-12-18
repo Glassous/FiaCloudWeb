@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaSignOutAlt, FaCog, FaTimes, FaSun, FaMoon, FaAdjust, FaBars, FaDownload, FaSearchPlus, FaSearchMinus } from 'react-icons/fa';
+import { FaSignOutAlt, FaCog, FaTimes, FaSun, FaMoon, FaAdjust, FaBars, FaDownload, FaSearchPlus, FaSearchMinus, FaEllipsisV } from 'react-icons/fa';
 import OSSConfig from './OSSConfig';
 import FileList from './FileList';
 import FilePreview from './FilePreview';
@@ -20,6 +20,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
   const [contentLoading, setContentLoading] = useState(false);
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 768);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [fontSize, setFontSize] = useState(14);
   
   const { theme, cycleTheme } = useTheme();
@@ -27,10 +29,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
 
   useEffect(() => {
     const handleResize = () => {
-        if (window.innerWidth <= 768) {
+        const mobile = window.innerWidth <= 768;
+        setIsMobile(mobile);
+        if (mobile) {
             setIsSidebarOpen(false);
         } else {
             setIsSidebarOpen(true);
+            setShowMobileMenu(false); // Reset mobile menu on desktop
         }
     };
     window.addEventListener('resize', handleResize);
@@ -192,30 +197,23 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
             >
                 <FaBars />
             </button>
-            <div style={{ fontSize: '18px', fontWeight: 'bold', flexShrink: 0 }}>FiaCloud</div>
             
-            {selectedFile && (
-                <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    marginLeft: '24px', 
-                    flex: 1, 
-                    overflow: 'hidden',
-                    gap: '16px'
-                }}>
-                    <div style={{ 
-                        overflow: 'hidden', 
-                        whiteSpace: 'nowrap', 
-                        textOverflow: 'ellipsis', 
-                        fontWeight: 500,
-                        color: 'var(--text-primary)',
-                        borderLeft: '1px solid var(--border-glass)',
-                        paddingLeft: '16px'
-                    }}>
-                        {selectedFile.name}
-                    </div>
+            {/* Dynamic Title - Hides when mobile menu is open */}
+            <div className={`header-title-wrapper ${isMobile && showMobileMenu ? 'hidden' : ''}`} style={{ 
+                fontSize: '18px', 
+                fontWeight: 'bold', 
+                flexShrink: 1, 
+                textOverflow: 'ellipsis'
+            }}>
+                {selectedFile ? selectedFile.name : 'FiaCloud'}
+            </div>
+            
+            <div style={{ flex: 1 }} />
 
-                    <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
+            {/* Controls Group */}
+            <div className={`header-controls-wrapper ${isMobile && !showMobileMenu ? 'hidden' : ''}`}>
+                {selectedFile && (
+                    <div style={{ display: 'flex', gap: 8 }}>
                         {isTextFile && (
                             <>
                                 <button 
@@ -244,36 +242,31 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
                                 gap: 6
                             }}
                         >
-                            <FaDownload /> 下载
+                            <FaDownload /> {isMobile ? '' : '下载'}
                         </button>
                     </div>
-                </div>
+                )}
+                
+                <button 
+                    onClick={cycleTheme}
+                    className="glass-button"
+                    title={`当前模式: ${theme === 'system' ? '跟随系统' : theme === 'light' ? '浅色' : '深色'}`}
+                >
+                    {getThemeIcon()}
+                </button>
+            </div>
+            
+            {/* Mobile Menu Toggle */}
+            {isMobile && selectedFile && (
+                <button 
+                    onClick={() => setShowMobileMenu(!showMobileMenu)} 
+                    className="glass-button"
+                    style={{ padding: '8px', marginLeft: '8px' }}
+                >
+                    <FaEllipsisV />
+                </button>
             )}
         </div>
-        
-        {!selectedFile && (
-             <div style={{ display: 'flex', gap: '10px' }}>
-                <button 
-                    onClick={cycleTheme}
-                    className="glass-button"
-                    title={`当前模式: ${theme === 'system' ? '跟随系统' : theme === 'light' ? '浅色' : '深色'}`}
-                >
-                    {getThemeIcon()}
-                </button>
-            </div>
-        )}
-        
-        {selectedFile && (
-             <div style={{ display: 'flex', gap: '10px', marginLeft: '10px' }}>
-                <button 
-                    onClick={cycleTheme}
-                    className="glass-button"
-                    title={`当前模式: ${theme === 'system' ? '跟随系统' : theme === 'light' ? '浅色' : '深色'}`}
-                >
-                    {getThemeIcon()}
-                </button>
-            </div>
-        )}
       </div>
       
       {/* Content */}
