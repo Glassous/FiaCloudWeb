@@ -4,13 +4,18 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import Papa from 'papaparse';
+import _ReactJson from 'react-json-view';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const ReactJson = (_ReactJson as any).default || _ReactJson;
 import 'katex/dist/katex.min.css';
 // @ts-ignore
 import piexif from 'piexifjs';
 import { FaSave } from 'react-icons/fa';
 import type { OSSFile } from '../types';
 import DiffViewer from './DiffViewer';
+import ErrorBoundary from './ErrorBoundary';
 import { useAI } from '../contexts/AIContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface FilePreviewProps {
   file: OSSFile | null;
@@ -36,6 +41,7 @@ const FilePreview: React.FC<FilePreviewProps> = ({
   onSaveExif
 }) => {
   const { isEditMode, originalEditContent, setOriginalEditContent } = useAI();
+  const { currentTheme } = useTheme();
   const [exifData, setExifData] = useState<any>(null);
   const [imgBase64, setImgBase64] = useState<string | null>(null);
   const [exifLoading, setExifLoading] = useState(false);
@@ -43,6 +49,7 @@ const FilePreview: React.FC<FilePreviewProps> = ({
   const isTextFile = file ? (file.name.endsWith('.txt') || file.name.endsWith('.md') || file.name.endsWith('.json') || file.name.endsWith('.js') || file.name.endsWith('.ts') || file.name.endsWith('.csv')) : false;
   const isMarkdown = file ? file.name.endsWith('.md') : false;
   const isCSV = file ? file.name.endsWith('.csv') : false;
+  const isJSON = file ? file.name.endsWith('.json') : false;
   const isImage = file ? (file.name.toLowerCase().endsWith('.jpg') || 
                   file.name.toLowerCase().endsWith('.jpeg') || 
                   file.name.toLowerCase().endsWith('.png') || 
@@ -198,6 +205,16 @@ const FilePreview: React.FC<FilePreviewProps> = ({
     }
   }, [isCSV, content]);
 
+  const { jsonData, jsonError } = useMemo(() => {
+    if (!isJSON || !content) return { jsonData: null, jsonError: null };
+    try {
+        return { jsonData: JSON.parse(content), jsonError: null };
+    } catch (e) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return { jsonData: null, jsonError: (e as any).message };
+    }
+  }, [isJSON, content]);
+
   const showDiff = isEditMode && originalEditContent !== null && isTextFile;
 
   if (!file) {
@@ -253,9 +270,11 @@ const FilePreview: React.FC<FilePreviewProps> = ({
                     color: 'var(--text-primary)',
                     lineHeight: 1.6
                 }}>
-                    <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
-                        {content}
-                    </ReactMarkdown>
+                    <ErrorBoundary>
+                        <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
+                            {content}
+                        </ReactMarkdown>
+                    </ErrorBoundary>
                 </div>
             ) : isCSV ? (
                 <div style={{ 
@@ -275,6 +294,59 @@ const FilePreview: React.FC<FilePreviewProps> = ({
                             ))}
                         </tbody>
                     </table>
+                </div>
+            ) : isJSON ? (
+                <div style={{ 
+                    padding: '24px', 
+                    fontSize: `${fontSize}px`,
+                    overflow: 'auto',
+                    height: '100%'
+                }}>
+                    <ErrorBoundary>
+                        {jsonError ? (
+                            <div style={{ color: 'var(--error, #ff4d4f)', fontFamily: 'monospace' }}>
+                                <h3 style={{ marginTop: 0 }}>JSON Parse Error</h3>
+                                <div style={{ marginBottom: 16 }}>{jsonError}</div>
+                                <div style={{ color: 'var(--text-secondary)' }}>
+                                    Raw Content:
+                                    <pre style={{ 
+                                        background: 'rgba(0,0,0,0.1)', 
+                                        padding: '16px', 
+                                        overflow: 'auto',
+                                        marginTop: '8px',
+                                        borderRadius: '4px'
+                                    }}>{content}</pre>
+                                </div>
+                            </div>
+                        ) : (
+                            <ReactJson 
+                                src={jsonData || {}} 
+                                theme={currentTheme === 'dark' ? 'monokai' : 'rjv-default'}
+                                name={false} 
+                                displayDataTypes={false}
+                                enableClipboard={true}
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                onEdit={(edit: any) => {
+                                    if (onContentChange) {
+                                        onContentChange(JSON.stringify(edit.updated_src, null, 2));
+                                    }
+                                }}
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                onAdd={(add: any) => {
+                                    if (onContentChange) {
+                                        onContentChange(JSON.stringify(add.updated_src, null, 2));
+                                    }
+                                }}
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                onDelete={(del: any) => {
+                                    if (onContentChange) {
+                                        onContentChange(JSON.stringify(del.updated_src, null, 2));
+                                    }
+                                }}
+                                style={{ backgroundColor: 'transparent', fontFamily: 'Consolas, Monaco, monospace' }}
+                            />
+                        )}
+                    </ErrorBoundary>
                 </div>
             ) : (
                 <div style={{  

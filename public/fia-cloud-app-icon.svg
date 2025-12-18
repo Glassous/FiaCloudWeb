@@ -1,0 +1,12 @@
+<svg width="80" height="80" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Reuse Gradient -->
+    <linearGradient id="fiaGradientIcon" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stop-color="#38BDF8" />
+        <stop offset="100%" stop-color="#6366F1" />
+    </linearGradient>
+    
+    <!-- Simplified F-Cloud Shape for Icon -->
+    <path d="M14 12C14 7.58172 18.4772 2 24 2H36C45.9411 2 54 10.0589 54 20C54 29.9411 45.9411 38 36 38H24V20C24 17.7909 22.2091 16 20 16H14Z" fill="url(#fiaGradientIcon)" />
+    <rect x="14" y="12" width="16" height="48" rx="8" fill="url(#fiaGradientIcon)" />
+    <circle cx="46" cy="42" r="14" fill="url(#fiaGradientIcon)" fill-opacity="0.9" />
+</svg>

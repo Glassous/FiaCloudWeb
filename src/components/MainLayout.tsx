@@ -361,7 +361,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
                     <div style={{ display: 'flex', gap: 8 }}>
                         {isTextFile && (
                             <>
-                                {(selectedFile.name.endsWith('.md') || selectedFile.name.endsWith('.csv')) && (
+                                {(selectedFile.name.endsWith('.md') || selectedFile.name.endsWith('.csv') || selectedFile.name.endsWith('.json')) && (
                                     <div style={{ display: 'flex', backgroundColor: 'rgba(128,128,128,0.1)', borderRadius: '6px', padding: '2px', marginRight: '8px' }}>
                                         <button
                                             onClick={() => setViewMode('preview')}
