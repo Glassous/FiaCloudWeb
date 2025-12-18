@@ -1,6 +1,9 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 import type { OSSFile } from '../types';
 
 interface FilePreviewProps {
@@ -68,7 +71,7 @@ const FilePreview: React.FC<FilePreviewProps> = ({
                     color: 'var(--text-primary)',
                     lineHeight: 1.6
                 }}>
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
                         {content}
                     </ReactMarkdown>
                 </div>
