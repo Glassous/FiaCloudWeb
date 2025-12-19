@@ -219,8 +219,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
                       file.name.toLowerCase().endsWith('.m4a');
 
       const isPDF = file.name.toLowerCase().endsWith('.pdf');
+      const isDocx = file.name.toLowerCase().endsWith('.docx');
+      const isExcel = file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls');
+      const isPPT = file.name.toLowerCase().endsWith('.pptx') || file.name.toLowerCase().endsWith('.ppt');
 
-      if (isImg || isVideo || isAudio || isPDF) {
+      if (isImg || isVideo || isAudio || isPDF || isDocx || isExcel || isPPT) {
           const url = await getFileUrl(file.name);
           if (selectedFileRef.current === file.name) {
               setPreviewUrl(url);
