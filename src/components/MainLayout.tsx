@@ -29,6 +29,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
   const [fontSize, setFontSize] = useState(14);
   const [showExif, setShowExif] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const selectedFileRef = useRef<string | null>(null);
   
   const { theme, cycleTheme } = useTheme();
   const { showToast } = useUI();
@@ -194,6 +195,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
     }
 
     if (file) {
+      selectedFileRef.current = file.name;
       setSelectedFile(file);
       setFileContent('');
       setFontSize(14); // Reset font size
@@ -216,9 +218,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
                       file.name.toLowerCase().endsWith('.aac') || 
                       file.name.toLowerCase().endsWith('.m4a');
 
-      if (isImg || isVideo || isAudio) {
+      const isPDF = file.name.toLowerCase().endsWith('.pdf');
+
+      if (isImg || isVideo || isAudio || isPDF) {
           const url = await getFileUrl(file.name);
-          setPreviewUrl(url);
+          if (selectedFileRef.current === file.name) {
+              setPreviewUrl(url);
+          }
       }
       
       if (file.name.endsWith('.txt') || file.name.endsWith('.md') || file.name.endsWith('.json') || file.name.endsWith('.js') || file.name.endsWith('.ts') || file.name.endsWith('.csv')) {
@@ -234,6 +240,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
         setContentLoading(false);
       }
     } else {
+        selectedFileRef.current = null;
         setSelectedFile(null);
         setFileContent('');
     }

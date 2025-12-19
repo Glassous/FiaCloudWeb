@@ -1,4 +1,8 @@
 import React, { useMemo, useEffect, useState } from 'react';
+import { Worker, Viewer } from '@react-pdf-viewer/core';
+import { defaultLayoutPlugin } from '@react-pdf-viewer/default-layout';
+import '@react-pdf-viewer/core/lib/styles/index.css';
+import '@react-pdf-viewer/default-layout/lib/styles/index.css';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -65,6 +69,9 @@ const FilePreview: React.FC<FilePreviewProps> = ({
                    file.name.toLowerCase().endsWith('.flac') || 
                    file.name.toLowerCase().endsWith('.aac') || 
                    file.name.toLowerCase().endsWith('.m4a')) : false;
+
+  const isPDF = file ? file.name.toLowerCase().endsWith('.pdf') : false;
+  const defaultLayoutPluginInstance = defaultLayoutPlugin();
 
    useEffect(() => {
       if (showExif && previewUrl && isImage && file) {
@@ -373,6 +380,22 @@ const FilePreview: React.FC<FilePreviewProps> = ({
                   {content || <span style={{ color: 'var(--text-placeholder)' }}>文件内容为空</span>}
                 </div>
             )
+          ) : isPDF ? (
+              <div style={{ height: '100%', overflow: 'hidden' }}>
+                  {previewUrl ? (
+                    <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js">
+                        <Viewer
+                            fileUrl={previewUrl}
+                            plugins={[defaultLayoutPluginInstance]}
+                            theme={currentTheme === 'dark' ? 'dark' : 'light'}
+                        />
+                    </Worker>
+                  ) : (
+                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                        加载 PDF 中...
+                    </div>
+                  )}
+              </div>
           ) : isImage ? (
               <div style={{ display: 'flex', height: '100%' }}>
                   <div style={{ 
