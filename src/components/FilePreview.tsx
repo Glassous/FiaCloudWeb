@@ -14,7 +14,7 @@ const ReactJson = (_ReactJson as any).default || _ReactJson;
 import 'katex/dist/katex.min.css';
 // @ts-ignore
 import piexif from 'piexifjs';
-import { FaSave } from 'react-icons/fa';
+import { FaSave, FaFileWord, FaFileExcel, FaFilePowerpoint, FaSpinner } from 'react-icons/fa';
 import { renderAsync } from 'docx-preview';
 import * as XLSX from 'xlsx';
 import type { OSSFile } from '../types';
@@ -52,6 +52,7 @@ const FilePreview: React.FC<FilePreviewProps> = ({
   const [imgBase64, setImgBase64] = useState<string | null>(null);
   const [exifLoading, setExifLoading] = useState(false);
   const [excelData, setExcelData] = useState<any[][]>([]);
+  const [loadingDoc, setLoadingDoc] = useState(false);
   const docxContainerRef = React.useRef<HTMLDivElement>(null);
 
   const isTextFile = file ? (file.name.endsWith('.txt') || file.name.endsWith('.md') || file.name.endsWith('.json') || file.name.endsWith('.js') || file.name.endsWith('.ts') || file.name.endsWith('.csv')) : false;
@@ -80,11 +81,58 @@ const FilePreview: React.FC<FilePreviewProps> = ({
   const isPPT = file ? (file.name.toLowerCase().endsWith('.pptx') || file.name.toLowerCase().endsWith('.ppt')) : false;
   const defaultLayoutPluginInstance = defaultLayoutPlugin();
 
+  const LoadingComponent = ({ type }: { type: 'word' | 'excel' | 'ppt' }) => {
+      const iconSize = 48;
+      const color = type === 'word' ? '#2b579a' : type === 'excel' ? '#217346' : '#d24726';
+      const Icon = type === 'word' ? FaFileWord : type === 'excel' ? FaFileExcel : FaFilePowerpoint;
+      const text = type === 'word' ? '加载文档中...' : type === 'excel' ? '加载表格中...' : '加载演示文稿中...';
+
+      return (
+          <div style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              justifyContent: 'center', 
+              alignItems: 'center', 
+              height: '100%', 
+              color: 'var(--text-secondary)',
+              gap: '16px'
+          }}>
+              <div style={{ position: 'relative' }}>
+                  <Icon size={iconSize} color={color} style={{ opacity: 0.8 }} />
+                  <div style={{
+                      position: 'absolute',
+                      top: '50%',
+                      left: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                  }}>
+                      <FaSpinner className="spin" size={24} color="#fff" />
+                  </div>
+              </div>
+              <div style={{ fontSize: '14px' }}>{text}</div>
+              <style>{`
+                  @keyframes spin {
+                      0% { transform: rotate(0deg); }
+                      100% { transform: rotate(360deg); }
+                  }
+                  .spin {
+                      animation: spin 1s linear infinite;
+                  }
+              `}</style>
+          </div>
+      );
+  };
+
    useEffect(() => {
+      let isMounted = true;
       if (isDocx && previewUrl && docxContainerRef.current) {
+          setLoadingDoc(true);
           fetch(previewUrl)
               .then(res => res.blob())
               .then(blob => {
+                  if (!isMounted) return;
                   if (docxContainerRef.current) {
                       // Clear previous content
                       docxContainerRef.current.innerHTML = '';
@@ -93,28 +141,53 @@ const FilePreview: React.FC<FilePreviewProps> = ({
                           inWrapper: true,
                           ignoreWidth: false,
                           ignoreHeight: false,
+                      }).then(() => {
+                          if (isMounted) setLoadingDoc(false);
+                      }).catch(err => {
+                          console.error('Error rendering docx:', err);
+                          if (isMounted) setLoadingDoc(false);
                       });
                   }
               })
-              .catch(err => console.error('Error loading docx:', err));
+              .catch(err => {
+                  console.error('Error loading docx:', err);
+                  if (isMounted) setLoadingDoc(false);
+              });
+      } else if (!previewUrl) {
+          // Reset when no preview url
+          if (docxContainerRef.current) {
+              docxContainerRef.current.innerHTML = '';
+          }
       }
+      
+      return () => {
+          isMounted = false;
+      };
    }, [isDocx, previewUrl]);
 
    useEffect(() => {
+    let isMounted = true;
     if (isExcel && previewUrl) {
+        setLoadingDoc(true);
         fetch(previewUrl)
             .then(res => res.arrayBuffer())
             .then(ab => {
+                if (!isMounted) return;
                 const wb = XLSX.read(ab, { type: 'array' });
                 const sheetName = wb.SheetNames[0];
                 const ws = wb.Sheets[sheetName];
                 const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
                 setExcelData(data as any[][]);
+                setLoadingDoc(false);
             })
-            .catch(err => console.error('Error loading excel:', err));
+            .catch(err => {
+                console.error('Error loading excel:', err);
+                if (isMounted) setLoadingDoc(false);
+            });
     } else {
         setExcelData([]);
     }
+    return () => { isMounted = false; };
    }, [isExcel, previewUrl]);
 
    useEffect(() => {
@@ -441,19 +514,28 @@ const FilePreview: React.FC<FilePreviewProps> = ({
                   )}
               </div>
           ) : isDocx ? (
-              <div 
-                  ref={docxContainerRef}
-                  style={{ 
-                      height: '100%', 
-                      overflow: 'auto', 
-                      backgroundColor: '#fff', 
-                      padding: '24px',
-                      color: '#000' 
-                  }}
-              >
-                  {!previewUrl && (
-                      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: 'var(--text-secondary)' }}>
-                          加载文档中...
+              <div style={{ position: 'relative', height: '100%', width: '100%' }}>
+                  <div 
+                      ref={docxContainerRef}
+                      style={{ 
+                          height: '100%', 
+                          overflow: 'auto', 
+                          backgroundColor: '#fff', 
+                          padding: '24px',
+                          color: '#000' 
+                      }}
+                  />
+                  {(!previewUrl || loadingDoc) && (
+                      <div style={{ 
+                          position: 'absolute', 
+                          top: 0, 
+                          left: 0, 
+                          width: '100%', 
+                          height: '100%', 
+                          backgroundColor: '#fff', 
+                          zIndex: 10 
+                      }}>
+                          <LoadingComponent type="word" />
                       </div>
                   )}
               </div>
@@ -474,9 +556,7 @@ const FilePreview: React.FC<FilePreviewProps> = ({
                           </tbody>
                       </table>
                   ) : (
-                       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: 'var(--text-secondary)' }}>
-                           {previewUrl ? '加载 Excel 中...' : '等待加载...'}
-                       </div>
+                       <LoadingComponent type="excel" />
                   )}
               </div>
           ) : isPPT ? (
@@ -492,9 +572,7 @@ const FilePreview: React.FC<FilePreviewProps> = ({
                            This is an embedded <a target="_blank" href="http://office.com" rel="noreferrer">Microsoft Office</a> document, powered by <a target="_blank" href="http://office.com/webapps" rel="noreferrer">Office Online</a>.
                        </iframe>
                    ) : (
-                       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: 'var(--text-secondary)' }}>
-                           加载 PPT 中...
-                       </div>
+                       <LoadingComponent type="ppt" />
                    )}
                </div>
           ) : isImage ? (
